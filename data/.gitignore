@@ -1,0 +1,8 @@
+# Ignore everything in this directory
+
+lichess_100mb_filtered.csv
+lichess_100mb.csv
+
+
+# Except this file
+
