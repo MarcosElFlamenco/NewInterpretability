@@ -7,19 +7,35 @@ BUCKET := go-bucket-craft
 DATATYPE := dummy
 LOCAL_PROBES := linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_0.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_1.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_2.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_3.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_4.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_6.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_7.pth
 S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_0.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_1.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_2.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_3.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_4.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_6.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_7.pth
+DATASET_PREFIX := random
+CONTROL_DATASET := dummy
 
-B1 := skypilot-workdir-oscar-f41b825a
+B1 := skypilot-workdir-oscar-3286bef5
+
 
 setup: $(SETUP)
 	$(PYTHON) $(SETUP)
 
+
+
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
-		--probe piece
+		--probe piece \
+		--dataset_prefix $(DATASET_PREFIX) \
+
+test_sanity_probe:
+	$(PYTHON) $(TEST) \
+		--mode test \
+		--probe piece \
+		--dataset_prefix $(CONTROL_DATASET) \
 
 train_probe:
-	$(PYTHON) $(TEST)
+	$(PYTHON) $(TEST) \
+		--mode train \
+		--probe piece \
+		--dataset_prefix $(DATASET_PREFIX) \
+
 
 remote_train_probe:
 	sky jobs launch -c boardCluster remote/train_probes.yaml
@@ -27,10 +43,11 @@ remote_train_probe:
 remote_test_probe:
 	sky jobs launch -c boardCluster remote/test_probes.yaml
 
+remote_sanity_check_probe:
+	sky jobs launch -c boardCluster remote/sanity_probes.yaml
 
 dummy_probes:
 	python3 saveDummyProbe.py
-
 
 upload_trained_probes:
 	$(PYTHON) remote/upload_file_to_s3.py \
@@ -49,3 +66,41 @@ filter: $(FILTER)
 sups3:
 	aws s3 rm s3://$(B1) --recursive
 	aws s3 rb s3://$(B1)
+	aws s3 rm s3://$(B2) --recursive
+	aws s3 rb s3://$(B2)
+	aws s3 rm s3://$(B3) --recursive
+	aws s3 rb s3://$(B3)
+	aws s3 rm s3://$(B4) --recursive
+	aws s3 rb s3://$(B4)
+	aws s3 rm s3://$(B5) --recursive
+	aws s3 rb s3://$(B5)
+	aws s3 rm s3://$(B6) --recursive
+	aws s3 rb s3://$(B6)
+	aws s3 rm s3://$(B7) --recursive
+	aws s3 rb s3://$(B7)
+	aws s3 rm s3://$(B8) --recursive
+	aws s3 rb s3://$(B8)
+	aws s3 rm s3://$(B9) --recursive
+	aws s3 rb s3://$(B9)
+	aws s3 rm s3://$(B0) --recursive
+	aws s3 rb s3://$(B0)
+	aws s3 rm s3://$(Ba) --recursive
+	aws s3 rb s3://$(Ba)
+	aws s3 rm s3://$(Bb) --recursive
+	aws s3 rb s3://$(Bb)
+	aws s3 rm s3://$(Bc) --recursive
+	aws s3 rb s3://$(Bc)
+	aws s3 rm s3://$(Bd) --recursive
+	aws s3 rb s3://$(Bd)
+	aws s3 rm s3://$(Be) --recursive
+	aws s3 rb s3://$(Be)
+	aws s3 rm s3://$(Bf) --recursive
+	aws s3 rb s3://$(Bf)
+
+
+
+
+
+
+
+

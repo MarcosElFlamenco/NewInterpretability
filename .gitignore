@@ -5,12 +5,15 @@ wandb/
 data/*
 !data/random_train.csv
 !data/random_test.csv
+!data/lichess.csv
+!data/lichess.csv
+
+
 !data/train_test_splitter.ipynb
 
 models/*
 !models/meta.pkl
 !models/view_model.ipynb
-!models/tf_lens_random_8layers_ckpt_no_optimizer.pth
 
 contrastive_activations/*
 intervention_logs/*

@@ -27,7 +27,8 @@ n_layers = 8
 d_model = 512
 
 #model_name = f"lichess_{n_layers}layers_ckpt_no_optimizer.pt"
-model_name = f'random_{n_layers}layers_ckpt20K.pth'
+#model_name = f'random_{n_layers}layers_ckpt20K.pth'
+model_name = 'checkpoint.pth'
 
 
 if not os.path.exists(f"{MODEL_DIR}{model_name}"):

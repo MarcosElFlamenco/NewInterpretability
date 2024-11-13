@@ -23,7 +23,8 @@ setup: |
 
 run: |
   set -e
-  python3 train_test_chess.py
+  python3 train_test_chess.py \
+    --dataset_prefix random \
   python3 remote/upload_file_to_s3.py \
     --bucket_name go-bucket-craft \
     --file_paths linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_0.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_1.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_2.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_3.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_4.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_6.pth linear_probes/tf_lens_random_8layers_ckpt_no_optimizer_chess_piece_probe_layer_7.pth

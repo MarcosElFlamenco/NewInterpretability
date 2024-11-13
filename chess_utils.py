@@ -8,6 +8,7 @@ from jaxtyping import Int, Float, jaxtyped
 from torch import Tensor
 from enum import Enum
 import othello_utils
+import re
 
 # Mapping of chess pieces to integers
 PIECE_TO_INT = {
@@ -279,25 +280,31 @@ def create_state_stack(
     board = chess.Board()
     initial_states_lRR = []
     count = 1
-
     # Scan 1: Creates states, with length = number of moves in the game
     initial_states_lRR.append(custom_board_to_state_fn(board, skill).to(dtype=torch.int8))
     # Apply each move to the board
-    for move in moves_string.split():
+   # move_pairs = re.split(r'\s\d+\.\s', moves_string)
+    #moves = [pair.split() for pair in move_pairs]
+    moves_no_space = moves_string.replace('. ', '.')
+    moves_split = moves_no_space.split()
+    moves = [move.replace('.', '. ') for move in moves_split]
+    for move in moves:
         try:
             count += 1
             # Skip move numbers
             if "." in move:
-                board.push_san(move.split(".")[1])
+                move_pgn = move.split()[1]
+                board.push_san(move_pgn)
             else:
                 board.push_san(move)
 
-            initial_states_lRR.append(custom_board_to_state_fn(board, skill).to(dtype=torch.int8))
+            board_tensor = custom_board_to_state_fn(board, skill).to(dtype=torch.int8)
+            initial_states_lRR.append(board_tensor)
+            #print("initial states lRR: ", initial_states_lRR)
         except:
             # because all games are truncated to len 680, often the last move is partial and invalid
             # so we don't need to log this, as it will happen on most games
             break
-
     # if count % 100 == 0:
     #     pretty_print_state_stack(state)
     #     print("_" * 50)
@@ -307,10 +314,14 @@ def create_state_stack(
     # For ;1.e4 e5 2.Nf3, ";1.e4" = idx 0, " e5" = idx 1, " 2.Nf3" = idx 2
     expanded_states_lRR = []
     move_index = 0
+    previous_char = ';'
     for char in moves_string:
+    
         if char == " ":
-            move_index += 1
+            if previous_char != ".":
+                move_index += 1
         expanded_states_lRR.append(initial_states_lRR[min(move_index, len(initial_states_lRR) - 1)])
+        previous_char = char
 
     # expanded_states.append(initial_states[-1]) # The last element in expanded_states is the final position of the board.
     # Currently not using this as len(expanded_states) would be 1 greater than len(moves_string) and that would be confusing.

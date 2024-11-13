@@ -1,19 +1,22 @@
+
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 import einops
+import argparse
 import torch
 from tqdm import tqdm
-from fancy_einsum import einsum
 from dataclasses import dataclass, field
 import pandas as pd
 import pickle
 import logging
 from typing import Optional
-from jaxtyping import Int, Float, jaxtyped
 from torch import Tensor
-from beartype import beartype
 import collections
 
+from jaxtyping import Int, Float, jaxtyped
+from fancy_einsum import einsum
+from beartype import beartype
 import chess_utils
+import einops
 import othello_engine_utils
 import othello_utils
 from chess_utils import PlayerColor, Config
@@ -36,8 +39,8 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 
-probe_type = 'dummy'
-dataset_prefix = "random_"
+
+
 MODEL_DIR = utils.MODEL_DIR
 D_MODEL = utils.D_MODEL
 N_HEADS = utils.N_HEADS
@@ -436,6 +439,11 @@ def parse_arguments():
         action="store_true",
         help="Enable logging to Weights & Biases. Default is False.",
     )
+    parser.add_argument(
+        '--dataset_prefix', 
+        type=str, 
+        help='The path to the input CSV file'
+    )
 
     args = parser.parse_args()
     return args
@@ -444,6 +452,8 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
     WANDB_LOGGING = args.wandb_logging
+    dataset_prefix = args.dataset_prefix
+    
     if args.mode == "test":
         print('Testing probes')
         # saved_probes = [
@@ -461,7 +471,7 @@ if __name__ == "__main__":
         if args.probe == 'piece':
             saved_probes = []
             for i in range(1):
-                saved_probes.append(f'tf_lens_{probe_type}_8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i}.pth')
+                saved_probes.append(f'tf_lens_{dataset_prefix}_8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i}.pth')
         elif args.probe == "skill":
             saved_probes = [
                 "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"
@@ -489,6 +499,7 @@ if __name__ == "__main__":
                 layer = state_dict["layer"]
                 model_name = state_dict["model_name"]
                 dataset_prefix = state_dict["dataset_prefix"]
+                print(f'retrieved the following dataset prefix from probe: {dataset_prefix}')
                 config.pos_start = state_dict["pos_start"]
                 levels_of_interest = None
                 if "levels_of_interest" in state_dict.keys():
@@ -537,7 +548,7 @@ if __name__ == "__main__":
 
         split = "train"
         n_layers = 8
-        model_name = f"tf_lens_{dataset_prefix}{n_layers}layers_ckpt_no_optimizer"
+        model_name = f"tf_lens_{dataset_prefix}_{n_layers}layers_ckpt_no_optimizer"
         indexing_function = None
 
         if othello:
@@ -546,7 +557,7 @@ if __name__ == "__main__":
             dataset_prefix = "othello_"
             indexing_function = othello_utils.get_othello_all_list_indices
 
-        input_dataframe_file = f"{DATA_DIR}{dataset_prefix}{split}.csv"
+        input_dataframe_file = f"{DATA_DIR}{dataset_prefix}_{split}.csv"
         config = chess_utils.set_config_min_max_vals_and_column_name(
             config, input_dataframe_file, dataset_prefix
         )

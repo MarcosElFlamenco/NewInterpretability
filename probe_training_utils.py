@@ -7,6 +7,7 @@ from typing import Optional
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 from chess_utils import PlayerColor, Config
 import logging
+from fancy_einsum import einsum
 from jaxtyping import Int, Float, jaxtyped
 from beartype import beartype
 import chess_utils
