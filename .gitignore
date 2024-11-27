@@ -2,12 +2,15 @@ __pycache__/
 **/.vscode
 wandb/
 
-data/*
 !data/random_train.csv
 !data/random_test.csv
 !data/lichess.csv
 !data/lichess.csv
-
+data/lichess_test.csv
+data/lichess_train.csv
+data/random_100mb.csv
+data/random_100mb_filtered.csv
+data/random_test_long.csv
 
 !data/train_test_splitter.ipynb
 

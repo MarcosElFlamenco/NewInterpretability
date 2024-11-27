@@ -508,7 +508,7 @@ if __name__ == "__main__":
                 n_layers = state_dict["n_layers"]
                 split = "test"
                 dataset_prefix = 'lichess_'
-                input_dataframe_file = f"{DATA_DIR}{dataset_prefix}{split}.csv"
+                input_dataframe_file = f"{DATA_DIR}{dataset_prefix}_{split}.csv"
                 config = chess_utils.set_config_min_max_vals_and_column_name(
                     config, input_dataframe_file, dataset_prefix
                 )

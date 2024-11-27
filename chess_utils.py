@@ -269,6 +269,55 @@ def pgn_string_to_board(pgn_string: str) -> chess.Board:
         board.push_san(move)
     return board
 
+def create_state_stack_original(
+    moves_string: str,
+    custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
+    skill: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Given a string of PGN format moves, create an 8x8 torch.Tensor for every character in the string."""
+
+    board = chess.Board()
+    initial_states_lRR = []
+    count = 1
+
+    # Scan 1: Creates states, with length = number of moves in the game
+    initial_states_lRR.append(custom_board_to_state_fn(board, skill).to(dtype=torch.int8))
+    # Apply each move to the board
+    for move in moves_string.split():
+        try:
+            count += 1
+            # Skip move numbers
+            if "." in move:
+                board.push_san(move.split(".")[1])
+            else:
+                board.push_san(move)
+
+            initial_states_lRR.append(custom_board_to_state_fn(board, skill).to(dtype=torch.int8))
+        except:
+            # because all games are truncated to len 680, often the last move is partial and invalid
+            # so we don't need to log this, as it will happen on most games
+            break
+
+    # if count % 100 == 0:
+    #     pretty_print_state_stack(state)
+    #     print("_" * 50)
+    #     print(board)
+
+    # Second Scan: Expand states to match the length of moves_string
+    # For ;1.e4 e5 2.Nf3, ";1.e4" = idx 0, " e5" = idx 1, " 2.Nf3" = idx 2
+#    print(f"inital state list lenght {len(initial_states_lRR)}")
+    expanded_states_lRR = []
+    move_index = 0
+    for char in moves_string:
+        if char == " ":
+            move_index += 1
+        expanded_states_lRR.append(initial_states_lRR[min(move_index, len(initial_states_lRR) - 1)])
+
+    # expanded_states.append(initial_states[-1]) # The last element in expanded_states is the final position of the board.
+    # Currently not using this as len(expanded_states) would be 1 greater than len(moves_string) and that would be confusing.
+
+#    print(f"expanded state list lenght {len(expanded_states_lRR)}")
+    return torch.stack(expanded_states_lRR)
 
 def create_state_stack(
     moves_string: str,
@@ -312,7 +361,9 @@ def create_state_stack(
 
     # Second Scan: Expand states to match the length of moves_string
     # For ;1.e4 e5 2.Nf3, ";1.e4" = idx 0, " e5" = idx 1, " 2.Nf3" = idx 2
+    #print(f"inital shape {len(initial_states_lRR)}")
     expanded_states_lRR = []
+    ##move index tracks the actual move of the game we want to be appending
     move_index = 0
     previous_char = ';'
     for char in moves_string:
@@ -320,12 +371,40 @@ def create_state_stack(
         if char == " ":
             if previous_char != ".":
                 move_index += 1
-        expanded_states_lRR.append(initial_states_lRR[min(move_index, len(initial_states_lRR) - 1)])
+        move_index_if_possible = min(move_index, len(initial_states_lRR) - 1)
+        expanded_states_lRR.append(initial_states_lRR[move_index_if_possible])
         previous_char = char
 
     # expanded_states.append(initial_states[-1]) # The last element in expanded_states is the final position of the board.
     # Currently not using this as len(expanded_states) would be 1 greater than len(moves_string) and that would be confusing.
-    return torch.stack(expanded_states_lRR)
+    t_expanded_states_lRR = torch.stack(expanded_states_lRR)
+    #print(f"expanded shape {t_expanded_states_lRR.shape}")
+    return t_expanded_states_lRR
+
+def create_state_stacks_original(
+    moves_strings: list[str],
+    custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
+    skill_array: Optional[torch.Tensor] = None,
+) -> Float[Tensor, "modes sample_size pgn_str_length rows cols"]:
+    """Given a list of strings of PGN format moves, create a tensor of shape (len(moves_strings), 8, 8).
+    custom_board_to_state is a function that takes a chess.Board object and returns a 8x8 torch.Tensor for
+    board state, or 1x1 for centipawn advantage."""
+    state_stacks_BlRR = []
+    skill = None
+
+    for idx, pgn_string in enumerate(moves_strings):
+        if skill_array is not None:
+            skill = skill_array[idx]
+        state_stack_lRR = create_state_stack_original(pgn_string, custom_board_to_state_fn, skill)
+
+        state_stacks_BlRR.append(state_stack_lRR)
+
+    # Convert the list of tensors to a single tensor
+    final_state_stack_BlRR = torch.stack(state_stacks_BlRR)
+    final_state_stack_MBlRR = final_state_stack_BlRR.unsqueeze(0)  # Add a dimension for the modes
+    # Currently, there is just one mode and it isn't necessary. For now, I'm maintaining the dimension for future use.
+    return final_state_stack_MBlRR
+
 
 
 def create_state_stacks(
