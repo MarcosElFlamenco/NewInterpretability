@@ -478,7 +478,7 @@ def state_stack_to_one_hot(
 def one_hot_to_state_stack(one_hot_MBLRRC: torch.Tensor, min_val: int) -> torch.Tensor:
     """We assume input shape UBLRRC, but it could work with other shapes."""
     indices = torch.argmax(one_hot_MBLRRC, dim=-1)
-    print(indices[0,0,0,:,:])
+    ##min val is a negative number it makes the board go between neg adn pos. Usually -6
     state_stack_MBLRR = indices + min_val
     return state_stack_MBLRR
 
