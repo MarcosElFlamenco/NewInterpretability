@@ -43,7 +43,7 @@ D_MODEL = 512
 N_HEADS = 8
 WANDB_LOGGING = False
 
-dataset_prefix = "untrained_"
+dataset_prefix = "random"
 OTHELLO_SEQ_LEN = 59
 
 DEVICE = (
@@ -703,82 +703,7 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     WANDB_LOGGING = args.wandb_logging
-    if False:
-        print('Testing probes')
-        # saved_probes = [
-        #     file
-        #     for file in os.listdir(SAVED_PROBE_DIR)
-        #     if os.path.isfile(os.path.join(SAVED_PROBE_DIR, file))
-        # ]
-        saved_probes = []
-
-        # Quick and janky way to select between piece and skill probes
-#        if args.probe == "piece":
-            #saved_probes = [
-                #"tf_lens_lichess_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth"
-            #]
-        if args.probe == 'piece':
-            saved_probes = []
-            for i in range(8):
-                saved_probes.append(f'tf_lens_{dataset_prefix}8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i}.pth')
-        elif args.probe == "skill":
-            saved_probes = [
-                "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"
-            ]
-
-        print(saved_probes)
-
-        # NOTE: This is very inefficient. The expensive part is forwarding the GPT, which we should only have to do once.
-        # With little effort, we could test probes on all layers at once. This would be much faster.
-        # But, I can test the probes in 20 minutes and it was a one-off thing, so I didn't bother.
-        # My strategy for development / hyperparameter testing was to iterate on the train side, then do the final test on the test side.
-        # As long as you have a reasonable training dataset size, you should be able to get a good idea of final test accuracy
-        # by looking at the training accuracy after a few epochs.
-        for probe_to_test in saved_probes:
-            probe_file_location = f"{SAVED_PROBE_DIR}{probe_to_test}"
-            # We will populate all parameters using information in the probe state dict
-            with open(probe_file_location, "rb") as f:
-                state_dict = torch.load(f, map_location=torch.device(DEVICE))
-                print(state_dict.keys())
-                for key in state_dict.keys():
-                    if key != "linear_probe":
-                        print(key, state_dict[key])
-
-                config = chess_utils.find_config_by_name(state_dict["config_name"])
-                layer = state_dict["layer"]
-                model_name = state_dict["model_name"]
-                dataset_prefix = state_dict["dataset_prefix"]
-                config.pos_start = state_dict["pos_start"]
-                levels_of_interest = None
-                if "levels_of_interest" in state_dict.keys():
-                    levels_of_interest = state_dict["levels_of_interest"]
-                config.levels_of_interest = levels_of_interest
-                n_layers = state_dict["n_layers"]
-                split = "test"
-
-                input_dataframe_file = f"{DATA_DIR}{dataset_prefix}{split}.csv"
-                config = chess_utils.set_config_min_max_vals_and_column_name(
-                    config, input_dataframe_file, dataset_prefix
-                )
-
-                probe_data = construct_linear_probe_data(
-                    input_dataframe_file,
-                    dataset_prefix,
-                    n_layers,
-                    model_name,
-                    config,
-                    TRAIN_PARAMS.max_test_games,
-                    DEVICE,
-                )
-
-                logging_dict = init_logging_dict(
-                    layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS
-                )
-
-                test_linear_probe_cross_entropy(
-                    probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS
-                )
-    elif True:
+    if True:
         print('Training probes')
         config = chess_utils.piece_config
         if args.probe == "skill":
@@ -792,7 +717,6 @@ if __name__ == "__main__":
 
         # When training a probe, you have to set all parameters such as model name, dataset prefix, etc.
 #        dataset_prefix = "lichess_"
-
 
         split = "train"
         n_layers = 8
