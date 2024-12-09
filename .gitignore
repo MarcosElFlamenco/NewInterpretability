@@ -26,5 +26,6 @@ awscliv2.zip
 interEnv/
 checkpoint.pth
 dummyEnv/
+env/
 
 linear_probes/saved_probes/*

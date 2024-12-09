@@ -1,4 +1,5 @@
 # For nanogpt to transformer lens conversion
+
 import torch
 import einops
 
@@ -16,28 +17,39 @@ from save_checkpoints import upload_checkpoint, load_checkpoint
 # Our pytorch model is in the nanogpt format. For easy linear probing of the residual stream, we want to convert
 # it to the transformer lens format. This is done in the following code block.
 # This code was developed using Neel Nanda's othello_reference/Othello_GPT.ipynb as a reference.
-
 torch.set_grad_enabled(False)
-LOAD_AND_CONVERT_CHECKPOINT = False
-device = "cpu"
+LOAD_AND_CONVERT_CHECKPOINT = True
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 checkpoint_key = 'checkpoint.pth'
+local_file_path = checkpoint_key
 bucket_name = 'chess-checkpoint-craft'
 
 MODEL_DIR = "models/"
 
-n_layer = 8
-n_head = 8
-n_embd = 512
+##Original karvonen defined params
+n_layers  = 8
+n_heads = 8
+d_model = 512
+
+
 block_size = 1023
 bias = False
 dropout = 0.0
 
+download_from_s3 = False
 
-model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
+
+model_args = dict(n_layer=n_layers, n_head=n_heads, n_embd=d_model, block_size=block_size,
                 bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
 
 ckpt_path = os.path.join(MODEL_DIR, 'checkpoint.pth')
-checkpoint = load_checkpoint(bucket_name, checkpoint_key, device)
+if download_from_s3:
+    print("Retrieving and loading checkpoint from s3")
+    checkpoint = load_checkpoint(bucket_name, checkpoint_key, device)
+else:
+    print(f"Loading local checkpoint at location {local_file_path}")
+    checkpoint = torch.load(local_file_path, map_location=device)
+
 checkpoint_model_args = checkpoint['model_args']
 # force these config attributes to be equal otherwise we can't even resume training
 # the rest of the attributes (e.g. dropout) can stay as desired from command line
@@ -173,8 +185,9 @@ if LOAD_AND_CONVERT_CHECKPOINT:
     model.to(device)
 
     model.load_and_process_state_dict(convert_nanogpt_weights(synthetic_checkpoint, cfg))
-    recorded_model_name = model_name.split(".")[0]
+    recorded_model_name = local_file_path.split(".")[0]
     torch.save(model.state_dict(), f"{MODEL_DIR}tf_lens_{recorded_model_name}.pth")
+    print("Model is saved")
 
 # An example input
 sample_input = torch.tensor([[15, 6, 4, 27, 9, 0, 25, 10, 0, 7, 4, 19]]).to(device)
@@ -182,7 +195,7 @@ sample_input = torch.tensor([[15, 6, 4, 27, 9, 0, 25, 10, 0, 7, 4, 19]]).to(devi
 # The argmax of the output (ie the most likely next move from each position)
 sample_output = torch.tensor([[6, 4, 27, 9, 0, 27, 10, 0, 7, 4, 19, 28]])
 output1 = model(sample_output)
-print(output1.shape())
+#print(output1.shape())
 output2 = output1.argmax(dim=-1)
 model_output = output2
 print(model_output)

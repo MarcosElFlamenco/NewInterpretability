@@ -4,31 +4,41 @@ SETUPs3:= model_setup_s3.py
 TEST := train_test_chess.py
 FILTER := lichess_data_filtering.ipynb
 BUCKET := go-bucket-craft
-DATATYPE := dummy
 LOCAL_PROBES := linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_0.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_1.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_2.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_3.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_4.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_6.pth linear_probes/saved_probes/tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_7.pth
 S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_0.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_1.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_2.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_3.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_4.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_5.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_6.pth tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_layer_7.pth
-DATASET_PREFIX := random
-CONTROL_DATASET := dummy
+
+
+##PROBING SETTINGS
+MODEL_DATASET := random
+PROBE_DATASET := random
+PROBE_CONTROL_DATASET := dummy
+TEST_GAMES_DATASET := random
+
+MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
+
 
 B1 := skypilot-workdir-oscar-3286bef5
 
 
 setup: $(SETUP)
-	$(PYTHON) $(SETUP)
-
-
+	$(PYTHON) $(SETUPs3)
 
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
 		--probe piece \
-		--dataset_prefix $(DATASET_PREFIX) \
+		--model_dataset $(MODEL_DATASET) \
+		--probe_dataset $(PROBE_DATASET) \
+		--test_games_dataset $(TEST_GAMES_DATASET)
 
-test_sanity_probe:
+test_control_probe:
 	$(PYTHON) $(TEST) \
 		--mode test \
 		--probe piece \
-		--dataset_prefix $(CONTROL_DATASET) \
+		--model_dataset $(MODEL_DATASET) \
+		--probe_dataset $(PROBE_CONTROL_DATASET) \
+		--test_games_dataset $(TEST_GAMES_DATASET)
+
 
 train_probe:
 	$(PYTHON) $(TEST) \
