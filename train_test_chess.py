@@ -527,12 +527,8 @@ if __name__ == "__main__":
                 config.levels_of_interest = levels_of_interest
                 n_layers = state_dict["n_layers"]
                 split = "test"
-<<<<<<< Updated upstream
-                dataset_prefix = 'random'
-                input_dataframe_file = f"{DATA_DIR}{dataset_prefix}_{split}.csv"
-=======
                 input_dataframe_file = f"{DATA_DIR}{args.test_games_dataset}_{split}.csv"
->>>>>>> Stashed changes
+
                 config = chess_utils.set_config_min_max_vals_and_column_name(
                     config, input_dataframe_file, args.test_games_dataset 
                 )
