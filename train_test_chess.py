@@ -197,6 +197,14 @@ def train_linear_probe_cross_entropy(
                 indices_B, probe_data, config, layers
             )
 
+            torch.set_printoptions(threshold=torch.inf)
+
+            with open('output.txt', 'w') as f:
+                f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
+            
+            print("done")
+            exit()
+
             for layer in probes:
 
                 probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass(
@@ -297,9 +305,13 @@ def construct_linear_probe_data(
 
     model = get_transformer_lens_model_utils(model_name, n_layers, device)
     user_state_dict_one_hot_mapping, df = process_dataframe(input_dataframe_file, config)
+    print(f"user state dict one hot {user_state_dict_one_hot_mapping}")
+    #this is none and probably shouldnt be
     df = df[:max_games]
     board_seqs_string_Bl = get_board_seqs_string(df)
+    print(f'seqs string {board_seqs_string_Bl}')
     board_seqs_int_Bl = get_board_seqs_int(df)
+    print(f'seqs int {board_seqs_int_Bl}')
     skill_stack_B = None
     if config.probing_for_skill:
         skill_stack_B = get_skill_stack(config, df)
@@ -456,10 +468,20 @@ def parse_arguments():
         type=str, 
         help='The path to the input CSV file'
     )
+ 
+    parser.add_argument(
+        '--training_config', 
+        type=str, 
+        help='The path to the input CSV file'
+    )
+
+
+
     
 
 
     args = parser.parse_args()
+    print(args.model_dataset)
     return args
 
 
@@ -552,8 +574,11 @@ if __name__ == "__main__":
                 )
     elif args.mode == "train":
         print('training probes')
-        config = chess_utils.piece_config
-        if args.probe == "skill":
+        if args.training_config == 'classic':
+            config = chess_utils.piece_config
+        elif args.training_config == 'custom':
+            config = chess_utils.custom_piece_config
+        elif args.probe == "skill":
             config = chess_utils.skill_config
 
         othello = False
@@ -568,6 +593,7 @@ if __name__ == "__main__":
 
         split = "train"
         n_layers = 8
+        print(args.model_dataset)
         model_name = f"tf_lens_{args.model_dataset}_{n_layers}layers_ckpt_no_optimizer"
         indexing_function = None
 
@@ -577,9 +603,9 @@ if __name__ == "__main__":
             dataset_prefix = "othello_"
             indexing_function = othello_utils.get_othello_all_list_indices
 
-        input_dataframe_file = f"{DATA_DIR}{dataset_prefix}_{split}.csv"
+        input_dataframe_file = f"{DATA_DIR}{args.probe_dataset}_{split}.csv"
         config = chess_utils.set_config_min_max_vals_and_column_name(
-            config, input_dataframe_file, dataset_prefix
+            config, input_dataframe_file, args.probe_dataset 
         )
         config = chess_utils.update_config_using_player_color(
             player_color, config, indexing_function
@@ -588,7 +614,7 @@ if __name__ == "__main__":
         max_games = TRAIN_PARAMS.max_train_games + TRAIN_PARAMS.max_val_games
         probe_data = construct_linear_probe_data(
             input_dataframe_file,
-            args.test_games_dataset,
+            args.probe_dataset,
             n_layers,
             model_name,
             config,
@@ -596,14 +622,15 @@ if __name__ == "__main__":
             DEVICE,
         )
 
+#        layers = list(range(first_layer, last_layer + 1))
+        layers = [5]
         probes = populate_probes_dict(
-            list(range(first_layer, last_layer + 1)),
+            layers,
             config,
             TRAIN_PARAMS,
             split,
-            args.test_games_dataset,
+            args.probe_dataset,
             model_name,
             n_layers,
         )
-
         train_linear_probe_cross_entropy(probes, probe_data, config, TRAIN_PARAMS)

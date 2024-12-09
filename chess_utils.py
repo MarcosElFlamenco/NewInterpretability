@@ -269,7 +269,7 @@ def pgn_string_to_board(pgn_string: str) -> chess.Board:
         board.push_san(move)
     return board
 
-def create_state_stack_original(
+def create_state_stack(
     moves_string: str,
     custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
     skill: Optional[torch.Tensor] = None,
@@ -319,7 +319,32 @@ def create_state_stack_original(
 #    print(f"expanded state list lenght {len(expanded_states_lRR)}")
     return torch.stack(expanded_states_lRR)
 
-def create_state_stack(
+def create_state_stacks(
+    moves_strings: list[str],
+    custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
+    skill_array: Optional[torch.Tensor] = None,
+) -> Float[Tensor, "modes sample_size pgn_str_length rows cols"]:
+    """Given a list of strings of PGN format moves, create a tensor of shape (len(moves_strings), 8, 8).
+    custom_board_to_state is a function that takes a chess.Board object and returns a 8x8 torch.Tensor for
+    board state, or 1x1 for centipawn advantage."""
+    state_stacks_BlRR = []
+    skill = None
+
+    for idx, pgn_string in enumerate(moves_strings):
+        if skill_array is not None:
+            skill = skill_array[idx]
+        state_stack_lRR = create_state_stack(pgn_string, custom_board_to_state_fn, skill)
+
+        state_stacks_BlRR.append(state_stack_lRR)
+
+    # Convert the list of tensors to a single tensor
+    final_state_stack_BlRR = torch.stack(state_stacks_BlRR)
+    final_state_stack_MBlRR = final_state_stack_BlRR.unsqueeze(0)  # Add a dimension for the modes
+    # Currently, there is just one mode and it isn't necessary. For now, I'm maintaining the dimension for future use.
+    return final_state_stack_MBlRR
+
+
+def create_state_stack_space(
     moves_string: str,
     custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
     skill: Optional[torch.Tensor] = None,
@@ -381,7 +406,9 @@ def create_state_stack(
     #print(f"expanded shape {t_expanded_states_lRR.shape}")
     return t_expanded_states_lRR
 
-def create_state_stacks_original(
+
+
+def create_state_stacks_space(
     moves_strings: list[str],
     custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
     skill_array: Optional[torch.Tensor] = None,
@@ -395,33 +422,7 @@ def create_state_stacks_original(
     for idx, pgn_string in enumerate(moves_strings):
         if skill_array is not None:
             skill = skill_array[idx]
-        state_stack_lRR = create_state_stack_original(pgn_string, custom_board_to_state_fn, skill)
-
-        state_stacks_BlRR.append(state_stack_lRR)
-
-    # Convert the list of tensors to a single tensor
-    final_state_stack_BlRR = torch.stack(state_stacks_BlRR)
-    final_state_stack_MBlRR = final_state_stack_BlRR.unsqueeze(0)  # Add a dimension for the modes
-    # Currently, there is just one mode and it isn't necessary. For now, I'm maintaining the dimension for future use.
-    return final_state_stack_MBlRR
-
-
-
-def create_state_stacks(
-    moves_strings: list[str],
-    custom_board_to_state_fn: Callable[[chess.Board], torch.Tensor],
-    skill_array: Optional[torch.Tensor] = None,
-) -> Float[Tensor, "modes sample_size pgn_str_length rows cols"]:
-    """Given a list of strings of PGN format moves, create a tensor of shape (len(moves_strings), 8, 8).
-    custom_board_to_state is a function that takes a chess.Board object and returns a 8x8 torch.Tensor for
-    board state, or 1x1 for centipawn advantage."""
-    state_stacks_BlRR = []
-    skill = None
-
-    for idx, pgn_string in enumerate(moves_strings):
-        if skill_array is not None:
-            skill = skill_array[idx]
-        state_stack_lRR = create_state_stack(pgn_string, custom_board_to_state_fn, skill)
+        state_stack_lRR = create_state_stack_space(pgn_string, custom_board_to_state_fn, skill)
 
         state_stacks_BlRR.append(state_stack_lRR)
 
@@ -714,6 +715,16 @@ piece_config = Config(
     linear_probe_name="chess_piece_probe",
 )
 
+custom_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="my_chess_piece_probe",
+    levels_of_interest=[5,6],
+    column_name='transcript',
+)
+
+
 pin_config = Config(
     min_val=0,
     max_val=1,
@@ -845,6 +856,8 @@ def set_config_min_max_vals_and_column_name(
     else:
         return config
     df = pd.read_csv(input_dataframe_file)
+    print(f"columns {df.columns}")
+    print(f"dataframe {df}")
     config.min_val = df[config.column_name].min()
     config.max_val = df[config.column_name].max()
 

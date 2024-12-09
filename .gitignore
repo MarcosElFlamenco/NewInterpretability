@@ -29,3 +29,7 @@ dummyEnv/
 env/
 
 linear_probes/saved_probes/*
+
+##debuging
+output.txt
+data/*

@@ -183,7 +183,9 @@ def process_dataframe(
         logger.info(f"Levels to be used in probe dataset: {matches}")
 
         # Filter the DataFrame based on these matches
-        df = df[df[config.column_name].isin(matches)]
+        cn = config.column_name
+        column = df[cn]
+        df = df[column.isin(matches)]
         logger.info(f"Number of games in filtered dataset: {len(df)}")
 
         df = df.reset_index(drop=True)
@@ -327,6 +329,7 @@ def prepare_data_batch(
         dots_indices_for_batch_L = games_dots_BL[batch_idx]
 
         # Index the state_stack for the current batch
+        print(f"the selected indices are {dots_indices_for_batch_L}")
         indexed_state_stack_one_hot_MLRRC = state_stack_one_hot_MBlRRC[
             :, batch_idx, dots_indices_for_batch_L, :, :, :
         ]

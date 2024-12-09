@@ -10,9 +10,10 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 
 ##PROBING SETTINGS
 MODEL_DATASET := random
-PROBE_DATASET := random
+PROBE_DATASET := random 
 PROBE_CONTROL_DATASET := dummy
 TEST_GAMES_DATASET := random
+TRAINING_CONFIG := classic
 
 MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
 
@@ -44,7 +45,9 @@ train_probe:
 	$(PYTHON) $(TEST) \
 		--mode train \
 		--probe piece \
-		--dataset_prefix $(DATASET_PREFIX) \
+		--probe_dataset $(PROBE_DATASET) \
+		--model_dataset $(MODEL_DATASET) \
+		--training_config $(TRAINING_CONFIG)
 
 
 remote_train_probe:
