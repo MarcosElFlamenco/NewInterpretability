@@ -168,6 +168,8 @@ def train_linear_probe_cross_entropy(
     val_games = (train_params.max_val_games // BATCH_SIZE) * BATCH_SIZE
     train_games = (train_params.max_train_games // BATCH_SIZE) * BATCH_SIZE
 
+     
+
     num_games = train_games + val_games
 
     if len(probe_data.board_seqs_int) < num_games:
@@ -197,13 +199,13 @@ def train_linear_probe_cross_entropy(
                 indices_B, probe_data, config, layers
             )
 
-            torch.set_printoptions(threshold=torch.inf)
+            #torch.set_printoptions(threshold=torch.inf)
 
-            with open('output.txt', 'w') as f:
-                f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
+            #with open('output.txt', 'w') as f:
+                #f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
             
-            print("done")
-            exit()
+            #print("done")
+            #exit()
 
             for layer in probes:
 

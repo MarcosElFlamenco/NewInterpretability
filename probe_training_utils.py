@@ -329,7 +329,7 @@ def prepare_data_batch(
         dots_indices_for_batch_L = games_dots_BL[batch_idx]
 
         # Index the state_stack for the current batch
-        print(f"the selected indices are {dots_indices_for_batch_L}")
+#        print(f"the selected indices are {dots_indices_for_batch_L}")
         indexed_state_stack_one_hot_MLRRC = state_stack_one_hot_MBlRRC[
             :, batch_idx, dots_indices_for_batch_L, :, :, :
         ]
