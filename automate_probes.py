@@ -1,16 +1,19 @@
-import train_test_chess as probes
+from train_test_chess import main
 
 def train_and_test_probes_on_models(args):
     for model in args.models:
-        train_test_chess.py \
-        --mode train \
-        --probe piece \
-        --probe_dataset random  \
-        --model_dataset random \
-        --training_config classic
 
 
-2024-12-10 11:46:25,809 - probe_training_u
+        # Simulate the command-line arguments in Python
+        main([
+            "--mode", "train",
+            "--probe", "piece",
+            "--probe_dataset", "random",
+            "--model_name", model,
+            "--training_config", "classic"
+        ])
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -20,7 +23,7 @@ if __name__ == '__main__':
         "--models",
         type=str,
         nargs='+'
-    )
+)
     parser.add_argument(
         "--training-set",
         type=str,
@@ -29,7 +32,7 @@ if __name__ == '__main__':
         "--testing-set",
         type=str,
     )
-
+    args = parser.parse_args()
     train_and_test_probes_on_models(args)
 
 

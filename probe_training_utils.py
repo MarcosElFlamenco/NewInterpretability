@@ -394,7 +394,7 @@ def populate_probes_dict(
             layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS
         )
         linear_probe_name = (
-            f"{PROBE_DIR}{logging_dict['model_name']}_{config.linear_probe_name}_layer_{layer}.pth"
+            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_layer_{layer}_tset_{dataset_prefix}.pth"
         )
         linear_probe_MDRRC = torch.randn(
             train_params.modes,
