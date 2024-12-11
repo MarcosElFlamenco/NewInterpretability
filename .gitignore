@@ -2,8 +2,8 @@ __pycache__/
 **/.vscode
 wandb/
 
-!data/random_train.csv
-!data/random_test.csv
+data/random_train.csv
+data/random_test.csv
 !data/lichess.csv
 !data/lichess.csv
 data/lichess_test.csv
@@ -33,3 +33,7 @@ linear_probes/saved_probes/*
 ##debuging
 output.txt
 data/*
+
+pass.txt
+output.txt
+

@@ -25,6 +25,8 @@ import probe_training_utils as utils
 from probe_training_utils import TrainingParams, SingleProbe, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TRAIN_PARAMS, get_one_hot_range, init_logging_dict
 
 
+debug = True
+
 logger = logging.getLogger(__name__)
 
 # logger.setLevel(logging.DEBUG)
@@ -70,7 +72,12 @@ def linear_probe_forward_pass(
         resid_post_BLD,
         linear_probe_MDRRC,
     )
-
+    if debug:
+        with open('pass.txt','w') as f:
+            f.write(str(probe_out_MBLRRC[0,0,:,:,:,12]))
+            
+        print('checked forward pass') 
+        exit()
     assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
 
     accuracy = (
@@ -194,18 +201,25 @@ def train_linear_probe_cross_entropy(
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
 
             indices_B = full_train_indices[i : i + BATCH_SIZE]  # shape batch_size
+            if debug:
+                with open('output.txt', 'w') as f:
+                    f.write(str(indices_B))
+                    f.write(f"game number {full_train_indices[i]} is {probe_data.board_seqs_int[full_train_indices[i]]}")
+                    f.write(f"game number {full_train_indices[i]} is {probe_data.board_seqs_string[full_train_indices[i].item()]}")
+                print("NOTE")
+                
+ 
 
             state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
                 indices_B, probe_data, config, layers
             )
+            if debug:
+                torch.set_printoptions(threshold=torch.inf)
 
-            #torch.set_printoptions(threshold=torch.inf)
-
-            #with open('output.txt', 'w') as f:
-                #f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
-            
-            #print("done")
-            #exit()
+                with open('output.txt', 'a') as f:
+                    f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,12]))
+                
+                print("done")
 
             for layer in probes:
 
@@ -506,7 +520,7 @@ if __name__ == "__main__":
         if args.probe == 'piece':
             saved_probes = []
             for i in range(1):
-                saved_probes.append(f'tf_lens_{args.probe_dataset}_8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i}.pth')
+                saved_probes.append(f'tf_lens_{args.probe_dataset}_8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i+5}.pth')
         elif args.probe == "skill":
             saved_probes = [
                 "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"

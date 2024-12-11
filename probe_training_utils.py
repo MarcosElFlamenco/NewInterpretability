@@ -13,6 +13,7 @@ from beartype import beartype
 import chess_utils
 import pickle
 import einops
+import numpy
 
 MODEL_DIR = "models/"
 D_MODEL = 512

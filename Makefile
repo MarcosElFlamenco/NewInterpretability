@@ -10,7 +10,7 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 
 ##PROBING SETTINGS
 MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer
-PROBE_DATASET := random 
+PROBE_DATASET := lichess 
 PROBE_CONTROL_DATASET := dummy
 TEST_GAMES_DATASET := random
 TRAINING_CONFIG := classic
