@@ -25,7 +25,7 @@ import probe_training_utils as utils
 from probe_training_utils import TrainingParams, SingleProbe, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TRAIN_PARAMS, get_one_hot_range, init_logging_dict
 
 
-debug = True
+debug = False
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ WANDB_PROJECT = utils.WANDB_PROJECT
 BATCH_SIZE = utils.BATCH_SIZE
 PROBE_DIR = utils.PROBE_DIR
 DEVICE = utils.DEVICE
-
+LOG_FREQUENCY = 10
 
 
 DATA_DIR = "data/"
@@ -176,7 +176,6 @@ def train_linear_probe_cross_entropy(
     train_games = (train_params.max_train_games // BATCH_SIZE) * BATCH_SIZE
 
      
-
     num_games = train_games + val_games
 
     if len(probe_data.board_seqs_int) < num_games:
@@ -196,10 +195,10 @@ def train_linear_probe_cross_entropy(
         )
 
     current_iter = 0
+    print(f"val games {val_games}, train_games {train_games}, num games {num_games}")
     for epoch in range(train_params.num_epochs):
         full_train_indices = torch.randperm(train_games)
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
-
             indices_B = full_train_indices[i : i + BATCH_SIZE]  # shape batch_size
             if debug:
                 with open('output.txt', 'w') as f:
@@ -236,7 +235,7 @@ def train_linear_probe_cross_entropy(
 
                 probes[layer].accuracy_queue.append(probes[layer].accuracy.item())
 
-            if i % 100 == 0:
+            if (i+1) % LOG_FREQUENCY == 0:
                 if WANDB_LOGGING:
                     wandb.log(
                         {
@@ -247,7 +246,8 @@ def train_linear_probe_cross_entropy(
                 for layer in probes:
                     avg_acc = sum(probes[layer].accuracy_queue) / len(probes[layer].accuracy_queue)
                     logger.info(
-                        f"epoch {epoch}, iter {i}, layer {layer}, acc {probes[layer].accuracy:.3f}, loss {probes[layer].loss:.3f}, avg acc {avg_acc:.3f}"
+                        f"epoch {epoch}, iter {i}, layer {layer}, acc {probes[layer].accuracy:.3f}, loss {probes[layer].loss:.3f}, avg acc {avg_acc:.3f} /n the length of the accuracy list is {len(probes[layer].accuracy_queue)}"
+                        
                     )
                     if WANDB_LOGGING:
                         wandb.log(
