@@ -61,23 +61,61 @@ OTHELLO_SEQ_LEN = 59
 
 @jaxtyped(typechecker=beartype)
 def linear_probe_forward_pass(
-    linear_probe_MDRRC: Float[Tensor, "modes d_model rows cols options"],
+    linear_probe: Float[Tensor, "modes d_model rows cols options"],
     state_stack_one_hot_MBLRRC: Int[Tensor, "modes batch num_white_moves rows cols options"],
     resid_post_BLD: Float[Tensor, "batch num_white_moves d_model"],
     one_hot_range: int,
 ) -> tuple[Tensor, Tensor]:
     """Outputs are scalar tensors."""
-    probe_out_MBLRRC = einsum(
-        "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
-        resid_post_BLD,
-        linear_probe_MDRRC,
-    )
     if debug:
         with open('pass.txt','w') as f:
             f.write(str(probe_out_MBLRRC[0,0,:,:,:,12]))
             
         print('checked forward pass') 
         exit()
+
+    probe_out_MBLRRC = einsum(
+        "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
+        resid_post_BLD,
+        linear_probe,
+        )
+ 
+    assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
+
+    accuracy = (
+        (probe_out_MBLRRC[0].argmax(-1) == state_stack_one_hot_MBLRRC[0].argmax(-1)).float().mean()
+    )
+
+    probe_log_probs_MBLRRC = probe_out_MBLRRC.log_softmax(-1)
+    probe_correct_log_probs_MLRR = (
+        einops.reduce(
+            probe_log_probs_MBLRRC * state_stack_one_hot_MBLRRC,
+            "modes batch pos rows cols options -> modes pos rows cols",
+            "mean",
+        )
+        * one_hot_range
+    )  # Multiply to correct for the mean over one_hot_range
+    # probe_correct_log_probs shape (modes, num_white_moves, num_rows, num_cols)
+    loss = -probe_correct_log_probs_MLRR[0, :].mean(0).sum()
+
+    return loss, accuracy
+
+@jaxtyped(typechecker=beartype)
+def linear_probe_forward_pass_full_probe(
+    linear_probe,
+    state_stack_one_hot_MBLRRC: Int[Tensor, "modes batch num_white_moves rows cols options"],
+    resid_post_BLD: Float[Tensor, "batch num_white_moves d_model"],
+    one_hot_range: int,
+) -> tuple[Tensor, Tensor]:
+    """Outputs are scalar tensors."""
+    if debug:
+        with open('pass.txt','w') as f:
+            f.write(str(probe_out_MBLRRC[0,0,:,:,:,12]))
+            
+        print('checked forward pass') 
+        exit()
+
+    probe_out_MBLRRC = linear_probe.forward_pass(resid_post_BLD) 
     assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
 
     accuracy = (
@@ -143,8 +181,8 @@ def estimate_loss(
             )
 
             for layer in probes:
-                loss, accuracy = linear_probe_forward_pass(
-                    probes[layer].linear_probe,
+                loss, accuracy = linear_probe_forward_pass_full_probe(
+                    probes[layer],
                     state_stack_one_hot_MBLRRC,
                     resid_post_dict_BLD[layer],
                     one_hot_range,
@@ -222,8 +260,8 @@ def train_linear_probe_cross_entropy(
 
             for layer in probes:
 
-                probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass(
-                    probes[layer].linear_probe,
+                probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass_full_probe(
+                    probes[layer],
                     state_stack_one_hot_MBLRRC,
                     resid_post_dict_BLD[layer],
                     one_hot_range,
@@ -387,7 +425,23 @@ def test_linear_probe_cross_entropy(
     logging_dict["num_games"] = num_games
 
     checkpoint = torch.load(linear_probe_name, map_location=DEVICE)
+
     linear_probe_MDRRC = checkpoint["linear_probe"]
+
+    optimiser = torch.optim.AdamW(
+        [linear_probe_MDRRC],
+        lr=train_params.lr,
+        betas=(train_params.beta1, train_params.beta2),
+        weight_decay=train_params.wd,
+    )
+
+    probe = SingleProbe(
+            linear_probe=linear_probe_MDRRC,
+            probe_name=linear_probe_name,
+            optimiser=optimiser,
+            logging_dict=logging_dict,
+        )
+
     logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
     logger.info(f"custom_indices shape: {probe_data.custom_indices.shape}")
 
@@ -632,6 +686,7 @@ if __name__ == "__main__":
         )
 
 #        layers = list(range(first_layer, last_layer + 1))
+        probe_type = 'cast'
         layers = [5]
         probes = populate_probes_dict(
             layers,
@@ -641,5 +696,6 @@ if __name__ == "__main__":
             args.probe_dataset,
             model_name,
             n_layers,
+            probe_type,
         )
         train_linear_probe_cross_entropy(probes, probe_data, config, TRAIN_PARAMS)

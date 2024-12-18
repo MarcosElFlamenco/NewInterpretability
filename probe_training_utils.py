@@ -77,7 +77,28 @@ TRAIN_PARAMS = TrainingParams()
 
 @dataclass
 class SingleProbe:
-    linear_probe: torch.Tensor
+    linear_probe_MDRRC: torch.Tensor
+    probe_name: str
+    optimiser: torch.optim.AdamW
+    logging_dict: dict
+    loss: torch.Tensor = torch.tensor(0.0)
+    accuracy: torch.Tensor = torch.tensor(0.0)
+    accuracy_queue: collections.deque = field(
+        default_factory=lambda: collections.deque(maxlen=1000)
+    )
+    def forward_pass(self,resid_post_BLD):
+        probe_out_MBLRRC = einsum(
+            "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
+            resid_post_BLD,
+            self.linear_probe,
+        )
+        return probe_out_MBLRRC
+
+##N is the nerfed dimension 
+@dataclass
+class SingleProbeCast:
+    linear_DN: torch.Tensor
+    linear_MNRRC: torch.Tensor
     probe_name: str
     optimiser: torch.optim.AdamW
     logging_dict: dict
@@ -87,6 +108,20 @@ class SingleProbe:
         default_factory=lambda: collections.deque(maxlen=1000)
     )
 
+    def forward_pass(self,resid_post_BLD):
+        intermediate_BLN = einsum(
+            "batch pos d_model, d_model rank -> batch pos rank",
+            resid_post_BLD,
+            self.linear_DN,
+        )
+
+        probe_out_MBLRRC = einsum(
+            "batch pos rank, modes rank rows cols options -> modes batch pos rows cols options",
+            intermediate_BLN,
+            self.linear_MNRRC,
+        )
+        return probe_out_MBLRRC
+ 
 
 @dataclass
 class LinearProbeData:
@@ -388,38 +423,75 @@ def populate_probes_dict(
     dataset_prefix,
     model_name,
     n_layers,
+    probe_type,
 ) -> dict[int, SingleProbe]:
     probes = {}
     for layer in layers:
+
         logging_dict = init_logging_dict(
-            layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS
+            layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, probe_type
         )
         linear_probe_name = (
-            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_layer_{layer}_tset_{dataset_prefix}.pth"
+            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_type_{probe_type}_layer_{layer}_tset_{dataset_prefix}.pth"
         )
-        linear_probe_MDRRC = torch.randn(
-            train_params.modes,
-            D_MODEL,
-            config.num_rows,
-            config.num_cols,
-            get_one_hot_range(config),
-            requires_grad=False,
-            device=DEVICE,
-        ) / torch.sqrt(torch.tensor(D_MODEL))
-        linear_probe_MDRRC.requires_grad = True
-        logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
+        if probe_type == 'vanilla':
+            linear_probe_MDRRC = torch.randn(
+                train_params.modes,
+                D_MODEL,
+                config.num_rows,
+                config.num_cols,
+                get_one_hot_range(config),
+                requires_grad=False,
+                device=DEVICE,
+            ) / torch.sqrt(torch.tensor(D_MODEL))
+            linear_probe_MDRRC.requires_grad = True
+            logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
 
-        optimiser = torch.optim.AdamW(
-            [linear_probe_MDRRC],
-            lr=train_params.lr,
-            betas=(train_params.beta1, train_params.beta2),
-            weight_decay=train_params.wd,
-        )
-        probes[layer] = SingleProbe(
-            linear_probe=linear_probe_MDRRC,
-            probe_name=linear_probe_name,
-            optimiser=optimiser,
-            logging_dict=logging_dict,
-        )
+            optimiser = torch.optim.AdamW(
+                [linear_probe_MDRRC],
+                lr=train_params.lr,
+                betas=(train_params.beta1, train_params.beta2),
+                weight_decay=train_params.wd,
+            )
+            probes[layer] = SingleProbe(
+                linear_probe=linear_probe_MDRRC,
+                probe_name=linear_probe_name,
+                optimiser=optimiser,
+                logging_dict=logging_dict,
+            )
+        elif probe_type == 'cast':
+            linear_DN = torch.randn(
+                D_MODEL,
+                config.cast_rank
+                requires_grad=False,
+                device=DEVICE,
+            ) / torch.sqrt(torch.tensor(D_MODEL))
+            linear_DN.requires_grad = True
+            linear_MNRRC = torch.randn(
+                train_params.modes,
+                config.cast_rank,
+                config.num_rows,
+                config.num_cols,
+                get_one_hot_range(config),
+                requires_grad=False,
+                device=DEVICE,
+            ) / torch.sqrt(torch.tensor(D_MODEL))
+            linear_MNRRC.requires_grad = True
+            logger.info(f"first tensor shape: {linear_DN.shape} second tensor shape {linear_MNRRC.shape}")
+
+            optimiser = torch.optim.AdamW(
+                [linear_DN,linear_MNRRC],
+                lr=train_params.lr,
+                betas=(train_params.beta1, train_params.beta2),
+                weight_decay=train_params.wd,
+            )
+            probes[layer] = SingleProbeCast(
+                linear_DN=linear_DN,
+                lineat_MNRRC=linear_MNRRC,
+                probe_name=linear_probe_name,
+                optimiser=optimiser,
+                logging_dict=logging_dict,
+            )
+ 
     return probes
 

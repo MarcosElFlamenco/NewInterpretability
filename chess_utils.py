@@ -706,6 +706,7 @@ class Config:
     pos_end: Optional[int] = None
     player_color: PlayerColor = PlayerColor.WHITE
     othello: bool = False
+    cast_rank: int = 64
 
 
 piece_config = Config(
