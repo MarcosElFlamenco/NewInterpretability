@@ -22,10 +22,11 @@ import othello_utils
 from chess_utils import PlayerColor, Config
 import argparse
 import probe_training_utils as utils
-from probe_training_utils import TrainingParams, SingleProbe, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TRAIN_PARAMS, get_one_hot_range, init_logging_dict
+from probe_training_utils import TrainingParams, SingleProbe, SingleProbeCast, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TRAIN_PARAMS, get_one_hot_range, init_logging_dict
 
 
 debug = False
+burger = 0
 
 logger = logging.getLogger(__name__)
 
@@ -61,66 +62,54 @@ OTHELLO_SEQ_LEN = 59
 
 @jaxtyped(typechecker=beartype)
 def linear_probe_forward_pass(
-    linear_probe: Float[Tensor, "modes d_model rows cols options"],
-    state_stack_one_hot_MBLRRC: Int[Tensor, "modes batch num_white_moves rows cols options"],
-    resid_post_BLD: Float[Tensor, "batch num_white_moves d_model"],
-    one_hot_range: int,
-) -> tuple[Tensor, Tensor]:
-    """Outputs are scalar tensors."""
-    if debug:
-        with open('pass.txt','w') as f:
-            f.write(str(probe_out_MBLRRC[0,0,:,:,:,12]))
-            
-        print('checked forward pass') 
-        exit()
-
-    probe_out_MBLRRC = einsum(
-        "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
-        resid_post_BLD,
-        linear_probe,
-        )
- 
-    assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
-
-    accuracy = (
-        (probe_out_MBLRRC[0].argmax(-1) == state_stack_one_hot_MBLRRC[0].argmax(-1)).float().mean()
-    )
-
-    probe_log_probs_MBLRRC = probe_out_MBLRRC.log_softmax(-1)
-    probe_correct_log_probs_MLRR = (
-        einops.reduce(
-            probe_log_probs_MBLRRC * state_stack_one_hot_MBLRRC,
-            "modes batch pos rows cols options -> modes pos rows cols",
-            "mean",
-        )
-        * one_hot_range
-    )  # Multiply to correct for the mean over one_hot_range
-    # probe_correct_log_probs shape (modes, num_white_moves, num_rows, num_cols)
-    loss = -probe_correct_log_probs_MLRR[0, :].mean(0).sum()
-
-    return loss, accuracy
-
-@jaxtyped(typechecker=beartype)
-def linear_probe_forward_pass_full_probe(
     linear_probe,
     state_stack_one_hot_MBLRRC: Int[Tensor, "modes batch num_white_moves rows cols options"],
     resid_post_BLD: Float[Tensor, "batch num_white_moves d_model"],
     one_hot_range: int,
 ) -> tuple[Tensor, Tensor]:
     """Outputs are scalar tensors."""
-    if debug:
-        with open('pass.txt','w') as f:
-            f.write(str(probe_out_MBLRRC[0,0,:,:,:,12]))
-            
-        print('checked forward pass') 
-        exit()
+    probe_out_MBLRRC = linear_probe.forward_pass(resid_post_BLD)
 
-    probe_out_MBLRRC = linear_probe.forward_pass(resid_post_BLD) 
+    predictions = probe_out_MBLRRC[0].argmax(-1)
+    ground_truth = state_stack_one_hot_MBLRRC[0].argmax(-1)
+    accuracy_grid = (predictions == ground_truth)
+    accuracy = accuracy_grid.float().mean()
+ 
+    global burger
+    burger += 1
+
+    if debug and burger == 200:
+        torch.set_printoptions(threshold=torch.inf) 
+        torch.set_printoptions(sci_mode=False, precision=4, threshold=torch.inf)
+        with open('probe_out.txt','w') as f:
+            f.write(str(probe_out_MBLRRC[0,0,:,:,:,7]))
+            
+        print('output forward pass') 
+        with open('one_hot.txt','w') as f:
+            f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
+            
+        print('output one hot')
+
+        with open('ground_truth.txt','w') as f:
+            f.write(str(ground_truth[0,:,:,:]))
+            
+        print('output ground truth') 
+        with open('prediction .txt','w') as f:
+            f.write(str(predictions[0,:,:,:]))
+            
+        print("output predictions")
+        
+        with open('accuracy_grid.txt','w') as f:
+            f.write(str(accuracy_grid[0,:,:,:]))
+            
+        print('output accuracy grid') 
+        print(f" accuracy : {accuracy}")
+     
+
+        exit()
     assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
 
-    accuracy = (
-        (probe_out_MBLRRC[0].argmax(-1) == state_stack_one_hot_MBLRRC[0].argmax(-1)).float().mean()
-    )
+   
 
     probe_log_probs_MBLRRC = probe_out_MBLRRC.log_softmax(-1)
     probe_correct_log_probs_MLRR = (
@@ -181,7 +170,7 @@ def estimate_loss(
             )
 
             for layer in probes:
-                loss, accuracy = linear_probe_forward_pass_full_probe(
+                loss, accuracy = linear_probe_forward_pass(
                     probes[layer],
                     state_stack_one_hot_MBLRRC,
                     resid_post_dict_BLD[layer],
@@ -238,29 +227,16 @@ def train_linear_probe_cross_entropy(
         full_train_indices = torch.randperm(train_games)
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
             indices_B = full_train_indices[i : i + BATCH_SIZE]  # shape batch_size
-            if debug:
-                with open('output.txt', 'w') as f:
-                    f.write(str(indices_B))
-                    f.write(f"game number {full_train_indices[i]} is {probe_data.board_seqs_int[full_train_indices[i]]}")
-                    f.write(f"game number {full_train_indices[i]} is {probe_data.board_seqs_string[full_train_indices[i].item()]}")
-                print("NOTE")
                 
  
 
             state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
                 indices_B, probe_data, config, layers
             )
-            if debug:
-                torch.set_printoptions(threshold=torch.inf)
-
-                with open('output.txt', 'a') as f:
-                    f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,12]))
-                
-                print("done")
 
             for layer in probes:
-
-                probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass_full_probe(
+                #print(f"Forward pass on layer {layer}, the probe is {probes[layer]}")
+                probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass(
                     probes[layer],
                     state_stack_one_hot_MBLRRC,
                     resid_post_dict_BLD[layer],
@@ -425,25 +401,36 @@ def test_linear_probe_cross_entropy(
     logging_dict["num_games"] = num_games
 
     checkpoint = torch.load(linear_probe_name, map_location=DEVICE)
-
-    linear_probe_MDRRC = checkpoint["linear_probe"]
-
-    optimiser = torch.optim.AdamW(
-        [linear_probe_MDRRC],
-        lr=train_params.lr,
-        betas=(train_params.beta1, train_params.beta2),
-        weight_decay=train_params.wd,
-    )
-
-    probe = SingleProbe(
-            linear_probe=linear_probe_MDRRC,
-            probe_name=linear_probe_name,
-            optimiser=optimiser,
-            logging_dict=logging_dict,
+    if config.probe_type == 'vanilla':
+        linear_probe_MDRRC = checkpoint["linear_probe"]
+        probe = SingleProbe(
+            linear_probe_MDRRC=linear_probe_MDRRC,
+            probe_name="dummy_probe",
+            optimiser=None,  # Not needed for inference
+            logging_dict={},
+            loss=torch.tensor(0.0),
+            accuracy=torch.tensor(0.0),
+            accuracy_queue=deque(maxlen=1000),
         )
+    elif config.probe_type == 'cast':
+        linear_DN = checkpoint["linear_DN"]
+        linear_MNRRC = checkpoint["linear_MNRRC"]
+        probe = SingleProbeCast(
+            linear_DN=linear_DN,
+            linear_MNRRC=linear_MNRRC,
+            probe_name="dummy_probe",
+            optimiser=None,  # Not needed for inference
+            logging_dict={},
+            loss=torch.tensor(0.0),
+            accuracy=torch.tensor(0.0),
+            accuracy_queue=deque(maxlen=1000),
+        )
+
 
     logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
     logger.info(f"custom_indices shape: {probe_data.custom_indices.shape}")
+
+
 
     layer = logging_dict["layer"]
 
@@ -461,9 +448,11 @@ def test_linear_probe_cross_entropy(
         state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
             indices_B, probe_data, config, [layer]
         )
+        from collections import deque
+
 
         loss, accuracy = linear_probe_forward_pass(
-            linear_probe_MDRRC,
+            probe,
             state_stack_one_hot_MBLRRC,
             resid_post_dict_BLD[layer],
             one_hot_range,
@@ -642,6 +631,8 @@ if __name__ == "__main__":
             config = chess_utils.piece_config
         elif args.training_config == 'custom':
             config = chess_utils.custom_piece_config
+        elif args.training_config == 'cast':
+            config = chess_utils.cast_piece_config
         elif args.probe == "skill":
             config = chess_utils.skill_config
 
@@ -686,8 +677,9 @@ if __name__ == "__main__":
         )
 
 #        layers = list(range(first_layer, last_layer + 1))
-        probe_type = 'cast'
         layers = [5]
+        probe_type = 'cast'
+        print("populating probes dict")
         probes = populate_probes_dict(
             layers,
             config,

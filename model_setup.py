@@ -28,7 +28,8 @@ d_model = 512
 
 #model_name = f"lichess_{n_layers}layers_ckpt_no_optimizer.pt"
 #model_name = f'random_{n_layers}layers_ckpt20K.pth'
-model_name = 'checkpoint.pth'
+model_name = 'lichess9gb_8layer_100K.pth'
+
 
 
 if not os.path.exists(f"{MODEL_DIR}{model_name}"):
@@ -42,6 +43,8 @@ checkpoint = torch.load(f"{MODEL_DIR}{model_name}", map_location=device)
 # Print the keys of the checkpoint dictionary
 print(checkpoint.keys())
 model_state = checkpoint["model"]
+print(f"model args {checkpoint["model_args"]}")
+
 # for key, value in model_state.items():
 #     print(key, value.shape)
 

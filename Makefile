@@ -22,7 +22,7 @@ B1 := skypilot-workdir-oscar-3286bef5
 
 
 setup: $(SETUP)
-	$(PYTHON) $(SETUPs3)
+	$(PYTHON) $(SETUP)
 
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \

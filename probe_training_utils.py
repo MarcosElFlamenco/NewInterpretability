@@ -90,7 +90,7 @@ class SingleProbe:
         probe_out_MBLRRC = einsum(
             "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
             resid_post_BLD,
-            self.linear_probe,
+            self.linear_probe_MDRRC,
         )
         return probe_out_MBLRRC
 
@@ -141,6 +141,7 @@ def init_logging_dict(
     model_name: str,
     n_layers: int,
     train_params: TrainingParams,
+    probe_type: str,
 ) -> dict:
 
     indexing_function_name = config.custom_indexing_function.__name__
@@ -172,6 +173,7 @@ def init_logging_dict(
         "n_layers": n_layers,
         "wandb_run_name": wandb_run_name,
         "player_color": config.player_color.value,
+        "probe_type": probe_type,
     }
 
     return logging_dict
@@ -454,15 +456,16 @@ def populate_probes_dict(
                 weight_decay=train_params.wd,
             )
             probes[layer] = SingleProbe(
-                linear_probe=linear_probe_MDRRC,
+                linear_probe_MDRRC=linear_probe_MDRRC,
                 probe_name=linear_probe_name,
                 optimiser=optimiser,
                 logging_dict=logging_dict,
             )
         elif probe_type == 'cast':
+            print("creating cast probe")
             linear_DN = torch.randn(
                 D_MODEL,
-                config.cast_rank
+                config.cast_rank,
                 requires_grad=False,
                 device=DEVICE,
             ) / torch.sqrt(torch.tensor(D_MODEL))
@@ -487,7 +490,7 @@ def populate_probes_dict(
             )
             probes[layer] = SingleProbeCast(
                 linear_DN=linear_DN,
-                lineat_MNRRC=linear_MNRRC,
+                linear_MNRRC=linear_MNRRC,
                 probe_name=linear_probe_name,
                 optimiser=optimiser,
                 logging_dict=logging_dict,

@@ -706,7 +706,8 @@ class Config:
     pos_end: Optional[int] = None
     player_color: PlayerColor = PlayerColor.WHITE
     othello: bool = False
-    cast_rank: int = 64
+    probe_type: str = 'vanilla'
+    cast_rank: int = 4
 
 
 piece_config = Config(
@@ -725,6 +726,16 @@ custom_piece_config = Config(
     column_name='transcript',
 )
 
+cast_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="cast_chess_piece_probe",
+    levels_of_interest=[5,6],
+    column_name='transcript',
+    probe_type='cast',
+    cast_rank=1
+)
 
 pin_config = Config(
     min_val=0,
