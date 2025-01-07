@@ -76,6 +76,17 @@ download_trained_probes:
 filter: $(FILTER)
 	$(PYTHON) $(FILTER)
 
+
+B1 := skypilot-workdir-oscar-55c4294c
+B2 := skypilot-workdir-oscar-5a00ff6c
+B3 := skypilot-workdir-oscar-79d7a44a
+B4 := skypilot-workdir-oscar-a15996f0
+B5 := skypilot-workdir-oscar-b2a92f33
+B6 := skypilot-workdir-oscar-b9360d7f
+B7 := skypilot-workdir-oscar-d46759e2
+B8 := skypilot-workdir-oscar-de100b13
+B9 := skypilot-workdir-oscar-f9a65495
+
 sups3:
 	aws s3 rm s3://$(B1) --recursive
 	aws s3 rb s3://$(B1)

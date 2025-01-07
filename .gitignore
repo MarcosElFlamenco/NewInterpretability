@@ -2,6 +2,9 @@ __pycache__/
 **/.vscode
 wandb/
 
+*.txt
+
+
 data/random_train.csv
 data/random_test.csv
 !data/lichess.csv
