@@ -12,6 +12,7 @@ from typing import Optional
 from torch import Tensor
 import collections
 
+from collections import deque
 from jaxtyping import Int, Float, jaxtyped
 from fancy_einsum import einsum
 from beartype import beartype
@@ -448,7 +449,6 @@ def test_linear_probe_cross_entropy(
         state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
             indices_B, probe_data, config, [layer]
         )
-        from collections import deque
 
 
         loss, accuracy = linear_probe_forward_pass(
@@ -619,7 +619,7 @@ if __name__ == "__main__":
                 )
 
                 logging_dict = init_logging_dict(
-                    layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS
+                    layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, config.probe_type
                 )
 
                 test_linear_probe_cross_entropy(

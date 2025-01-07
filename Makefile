@@ -40,8 +40,8 @@ test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
 		--probe piece \
-		--model_name $(MODEL_NAME) \
 		--probe_dataset $(PROBE_DATASET) \
+		--model_name $(RANDOM_MODEL_NAME) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
 test_control_probe:
