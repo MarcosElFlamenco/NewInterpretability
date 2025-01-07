@@ -9,8 +9,10 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 
 
 ##PROBING SETTINGS
-MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer
-PROBE_DATASET := lichess 
+RANDOM_MODEL_NAME := tf_lens_big_random16M_vocab32_150K
+LICHESS_MODEL_NAME := tf_lens_lichess9gb_vocab32_175K
+OLD_MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer_Bonus
+PROBE_DATASET := random
 PROBE_CONTROL_DATASET := dummy
 TEST_GAMES_DATASET := random
 TRAINING_CONFIG := classic
@@ -22,7 +24,17 @@ B1 := skypilot-workdir-oscar-3286bef5
 
 
 setup: $(SETUP)
-	$(PYTHON) $(SETUP)
+	$(PYTHON) $(SETUP) \
+		--model_name $(MODEL_NAME)
+
+train_probe:
+	$(PYTHON) $(TEST) \
+		--mode train \
+		--probe piece \
+		--probe_dataset $(PROBE_DATASET) \
+		--model_name $(RANDOM_MODEL_NAME) \
+		--training_config $(TRAINING_CONFIG)
+
 
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
@@ -40,14 +52,6 @@ test_control_probe:
 		--probe_dataset $(PROBE_CONTROL_DATASET) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
-
-train_probe:
-	$(PYTHON) $(TEST) \
-		--mode train \
-		--probe piece \
-		--probe_dataset $(PROBE_DATASET) \
-		--model_name $(MODEL_NAME) \
-		--training_config $(TRAINING_CONFIG)
 
 
 remote_train_probe:
@@ -76,16 +80,6 @@ download_trained_probes:
 filter: $(FILTER)
 	$(PYTHON) $(FILTER)
 
-
-B1 := skypilot-workdir-oscar-55c4294c
-B2 := skypilot-workdir-oscar-5a00ff6c
-B3 := skypilot-workdir-oscar-79d7a44a
-B4 := skypilot-workdir-oscar-a15996f0
-B5 := skypilot-workdir-oscar-b2a92f33
-B6 := skypilot-workdir-oscar-b9360d7f
-B7 := skypilot-workdir-oscar-d46759e2
-B8 := skypilot-workdir-oscar-de100b13
-B9 := skypilot-workdir-oscar-f9a65495
 
 sups3:
 	aws s3 rm s3://$(B1) --recursive

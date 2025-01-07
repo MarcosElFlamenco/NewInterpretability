@@ -28,9 +28,17 @@ d_model = 512
 
 #model_name = f"lichess_{n_layers}layers_ckpt_no_optimizer.pt"
 #model_name = f'random_{n_layers}layers_ckpt20K.pth'
-model_name = 'lichess9gb_8layer_100K.pth'
+parser = argparse.ArgumentParser(
+    description="Train or test chess probes on piece or skill data."
+)
+parser.add_argument(
+    "--model_name",
+    type=str,
+    help='Mode to run the script in: "test" or "train".',
+)
+args = parser.parse_args()
 
-
+model_name = args.model_name
 
 if not os.path.exists(f"{MODEL_DIR}{model_name}"):
     state_dict = utils.download_file_from_hf("adamkarvonen/chess_llms", model_name)

@@ -434,9 +434,11 @@ def populate_probes_dict(
             layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, probe_type
         )
         linear_probe_name = (
-            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_type_{probe_type}_layer_{layer}_tset_{dataset_prefix}.pth"
+            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_type_{probe_type}_layer_{layer}_test_{dataset_prefix}.pth"
         )
+        print(f"probe type is {probe_type}")
         if probe_type == 'vanilla':
+            print(f"Found {probe_type} probe type, initialising vanilla probe")
             linear_probe_MDRRC = torch.randn(
                 train_params.modes,
                 D_MODEL,

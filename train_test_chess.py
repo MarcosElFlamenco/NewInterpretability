@@ -300,7 +300,7 @@ def train_linear_probe_cross_entropy(
     final_accs = {}
     for layer in probes:
         checkpoint = {
-            "linear_probe": probes[layer].linear_probe,
+            "linear_probe_MDRRC": probes[layer].linear_probe_MDRRC,
             "final_loss": probes[layer].loss,
             "iters": current_iter,
             "epochs": epoch,
@@ -584,7 +584,7 @@ if __name__ == "__main__":
                 state_dict = torch.load(f, map_location=torch.device(DEVICE))
                 print(state_dict.keys())
                 for key in state_dict.keys():
-                    if key != "linear_probe":
+                    if key != "linear_probe_MDRRC":
                         print(key, state_dict[key])
 
                 config = chess_utils.find_config_by_name(state_dict["config_name"])
@@ -628,6 +628,7 @@ if __name__ == "__main__":
     elif args.mode == "train":
         print('training probes')
         if args.training_config == 'classic':
+            print(f"Found config parameter: {args.training_config}")
             config = chess_utils.piece_config
         elif args.training_config == 'custom':
             config = chess_utils.custom_piece_config
@@ -678,7 +679,7 @@ if __name__ == "__main__":
 
 #        layers = list(range(first_layer, last_layer + 1))
         layers = [5]
-        probe_type = 'cast'
+        probe_type = 'vanilla'
         print("populating probes dict")
         probes = populate_probes_dict(
             layers,
