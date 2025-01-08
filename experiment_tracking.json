@@ -1,0 +1,18 @@
+[
+  {
+    "model_name": "big_random16M_vocab32_50K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "100",
+    "max_train_games": "100",
+    "accuracy": 0.7774621248245239
+  },
+  {
+    "model_name": "big_random16M_vocab32_100K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "100",
+    "max_train_games": "100",
+    "accuracy": 0.7497632503509521
+  }
+]

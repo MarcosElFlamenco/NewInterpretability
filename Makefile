@@ -18,6 +18,8 @@ TEST_GAMES_DATASET := random
 TRAINING_CONFIG := classic
 
 MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
+MAX_ITERS := 20000
+MAX_TRAIN_GAMES := 10000
 
 
 B1 := skypilot-workdir-oscar-3286bef5
@@ -33,7 +35,9 @@ train_probe:
 		--probe piece \
 		--probe_dataset $(PROBE_DATASET) \
 		--model_name $(RANDOM_MODEL_NAME) \
-		--training_config $(TRAINING_CONFIG)
+		--training_config $(TRAINING_CONFIG) \
+		--max_iters $(MAX_ITERS) \
+		--max_train_games $(MAX_TRAIN_GAMES)
 
 
 test_probe: $(TEST)
@@ -62,6 +66,8 @@ run_probe_experiments:
 		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
+		--max_iters $(MAX_ITERS) \
+		--max_train_games $(MAX_TRAIN_GAMES) \
 		--verbose
 
 

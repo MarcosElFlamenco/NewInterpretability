@@ -23,7 +23,7 @@ import othello_utils
 from chess_utils import PlayerColor, Config
 import argparse
 import probe_training_utils as utils
-from probe_training_utils import TrainingParams, SingleProbe, SingleProbeCast, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TRAIN_PARAMS, get_one_hot_range, init_logging_dict
+from probe_training_utils import TrainingParams, SingleProbe, SingleProbeCast, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TrainingParams, get_one_hot_range, init_logging_dict
 
 
 debug = False
@@ -194,7 +194,7 @@ def train_linear_probe_cross_entropy(
     """Trains a linear probe on the train set, contained in probe_data. Saves all probes to disk.
     Returns a dict of layer: final avg_acc over the last 1,000 iterations.
     This dict is also used as an end to end test for the function."""
-
+    print(f"will be running this many iters {TRAIN_PARAMS.max_iters}")
     first_layer = min(probes.keys())
     layers = list(probes.keys())
     all_layers_str = "_".join([str(layer) for layer in layers])
@@ -228,8 +228,6 @@ def train_linear_probe_cross_entropy(
         full_train_indices = torch.randperm(train_games)
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
             indices_B = full_train_indices[i : i + BATCH_SIZE]  # shape batch_size
-                
- 
 
             state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
                 indices_B, probe_data, config, layers
@@ -531,9 +529,18 @@ def parse_arguments():
     parser.add_argument(
         '--training_config', 
         type=str, 
-        help='The path to the input CSV file'
+        help='the path to the input csv file'
     )
-
+    parser.add_argument(
+        '--max_iters', 
+        type=int, 
+        help='the path to the input csv file'
+    )
+    parser.add_argument(
+        '--max_train_games', 
+        type=int, 
+        help='the path to the input csv file'
+    )
     args = parser.parse_args()
     return args
 
@@ -541,6 +548,13 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
     WANDB_LOGGING = args.wandb_logging
+    args.model_name = "tf_lens_" + args.model_name
+    TRAIN_PARAMS = TrainingParams(max_train_games=args.max_train_games,max_iters=args.max_iters)
+
+#    TRAIN_PARAMS.max_iters = args.max_iters
+    #TRAIN_PARAMS.max_train_games = args.max_train_games
+    #TRAIN_PARAMS.num_epochs = TRAIN_PARAMS.max_iters // TRAIN_PARAMS.max_train_games
+
 
     if args.mode == "test":
         print('Testing probes')
