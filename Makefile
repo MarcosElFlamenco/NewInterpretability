@@ -47,6 +47,7 @@ test_probe: $(TEST)
 		--probe_dataset $(PROBE_DATASET) \
 		--model_name $(RANDOM_MODEL_NAME) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
+		--verbose
 
 test_control_probe:
 	$(PYTHON) $(TEST) \

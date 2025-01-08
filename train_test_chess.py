@@ -21,7 +21,6 @@ import einops
 import othello_engine_utils
 import othello_utils
 from chess_utils import PlayerColor, Config
-import argparse
 import probe_training_utils as utils
 from probe_training_utils import TrainingParams, SingleProbe, SingleProbeCast, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TrainingParams, get_one_hot_range, init_logging_dict
 
@@ -224,6 +223,7 @@ def train_linear_probe_cross_entropy(
 
     current_iter = 0
     print(f"val games {val_games}, train_games {train_games}, num games {num_games}")
+    print(f"we will be training for {train_params.num_epochs} epochs")
     for epoch in range(train_params.num_epochs):
         full_train_indices = torch.randperm(train_games)
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
@@ -538,6 +538,11 @@ def parse_arguments():
     )
     parser.add_argument(
         '--max_train_games', 
+        type=int, 
+        help='the path to the input csv file'
+    )
+    parser.add_argument(
+        '--verbose', 
         type=int, 
         help='the path to the input csv file'
     )
