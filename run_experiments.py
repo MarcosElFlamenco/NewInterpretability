@@ -135,7 +135,7 @@ def run_train_probe(model_name, probe_dataset, training_config, verbose=False):
     
     cmd = [
         "python",
-        "test.py",  # or whatever your script is
+        "train_test_chess.py", 
         "--mode", "train",
         "--probe", "piece",
         "--probe_dataset", probe_dataset,
@@ -230,14 +230,15 @@ def main():
 
     # TRAINING SECTION
     for model_name, probe_dataset, training_config in combos:
+        model_name_pth = model_name + ".pth"
         if args.verbose:
             print("\n----------------------------------------------------")
             print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}")
             print("----------------------------------------------------\n")
 
         # 1) Check if the transformer lens model exists
-        if not model_exists_as_transformer_lens(model_name):
-            create_transformer_lens_model(model_name, verbose=args.verbose)
+        if not model_exists_as_transformer_lens(model_name_pth):
+            create_transformer_lens_model(model_name_pth, verbose=args.verbose)
 
         # 2) Check if this combination is already done
         if (model_name, probe_dataset, training_config) in completed_set:

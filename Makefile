@@ -9,7 +9,7 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 
 
 ##PROBING SETTINGS
-RANDOM_MODEL_NAME := tf_lens_big_random16M_vocab32_150K
+RANDOM_MODEL_NAME := big_random16M_vocab32_50K
 LICHESS_MODEL_NAME := tf_lens_lichess9gb_vocab32_175K
 OLD_MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer_Bonus
 PROBE_DATASET := random
@@ -25,7 +25,7 @@ B1 := skypilot-workdir-oscar-3286bef5
 
 setup: $(SETUP)
 	$(PYTHON) $(SETUP) \
-		--model_name $(MODEL_NAME)
+		--model_name $(RANDOM_MODEL_NAME)
 
 train_probe:
 	$(PYTHON) $(TEST) \
@@ -51,6 +51,18 @@ test_control_probe:
 		--model_name $(MODEL_NAME) \
 		--probe_dataset $(PROBE_CONTROL_DATASET) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
+
+
+##this function is not debuged yet
+##TODO check that this works as required
+
+run_probe_experiments:
+	$(PYTHON) run_experiments.py \
+		--models big_random16M_vocab32_50K big_random16M_vocab32_100K big_random16M_vocab32_200K big_random16M_vocab32_300K \
+		--probe_datasets random \
+		--training_configs $(TRAINING_CONFIG) \
+		--test_games_datasets random \
+		--verbose
 
 
 
