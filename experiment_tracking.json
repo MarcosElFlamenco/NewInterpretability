@@ -34,5 +34,41 @@
     "max_train_games": "10000",
     "num_epochs": "2",
     "accuracy": 0.822206437587738
+  },
+  {
+    "model_name": "lichess9gb_vocab32_150K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.7668087482452393
+  },
+  {
+    "model_name": "lichess9gb_vocab32_175K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.7843276858329773
+  },
+  {
+    "model_name": "big_random16M_vocab32_160K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.7997159361839294
+  },
+  {
+    "model_name": "big_random16M_vocab32_175K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.8288352489471436
   }
 ]

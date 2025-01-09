@@ -218,7 +218,9 @@ def run_test_probe(model_name, probe_dataset, test_games_dataset, training_confi
         print(f"[INFO] Testing probe for model={model_name}, dataset={probe_dataset}, test_games_dataset={test_games_dataset}, config={training_config}")
         print(f"[CMD] {' '.join(cmd)}")
     
-    subprocess.run(cmd, check=True)
+    result = subprocess.run(cmd, capture_output=True, check=True)
+    print("---------------------------------DIOWN============================")
+    print(result)
 
 
 def build_checkpoint_filename(model_name, probe_dataset):

@@ -437,6 +437,7 @@ def test_linear_probe_cross_entropy(
     accuracy_list = []
     loss_list = []
     full_test_indices = torch.arange(0, num_games)
+    num_games = BATCH_SIZE
     for i in tqdm(range(0, num_games, BATCH_SIZE)):
 #        print(f'This is currently iteration {i}')
 #        print(f'The current accuracy list is {accuracy_list}')
@@ -609,13 +610,13 @@ if __name__ == "__main__":
             with open(probe_file_location, "rb") as f:
                 state_dict = torch.load(f, map_location=torch.device(DEVICE))
                 #print(state_dict.keys())
-                for key in state_dict.keys():
-                    if key != "linear_probe_MRRDC":
-                        print(key, state_dict[key])
-                    else:
-                        print(key,state_dict[key].shape)
+#                for key in state_dict.keys():
+                    #if key != "linear_probe_MRRDC":
+                        #print(key, state_dict[key])
+                    #else:
+                        #print(key,state_dict[key].shape)
 
-                config = chess_utils.find_config_by_name(state_dict["config_name"])
+                #config = chess_utils.find_config_by_name(state_dict["config_name"])
                 layer = state_dict["layer"]
                 ##model_name = state_dict["model_name"]
                 n_layers = 8
@@ -650,7 +651,7 @@ if __name__ == "__main__":
                     layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, config.probe_type
                 )
 
-                test_linear_probe_cross_entropy(
+                avg_accuracy = test_linear_probe_cross_entropy(
                     probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS
                 )
     elif args.mode == "train":

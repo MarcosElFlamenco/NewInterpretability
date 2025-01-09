@@ -20,7 +20,7 @@ TRAINING_CONFIG := classic
 MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
 MAX_ITERS := 20000
 MAX_TRAIN_GAMES := 10000
-NUM_EPOCHS := 2
+NUM_EPOCHS := 3
 
 B1 := skypilot-workdir-oscar-3286bef5
 
@@ -64,13 +64,14 @@ test_control_probe:
 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
-		--models big_random16M_vocab32_50K big_random16M_vocab32_100K big_random16M_vocab32_200K big_random16M_vocab32_300K \
+		--models lichess9gb_vocab32_150K \
 		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
 		--max_iters $(MAX_ITERS) \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
+		--test \
 		--verbose
 
 
