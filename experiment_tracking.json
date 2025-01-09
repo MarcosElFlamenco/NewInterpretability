@@ -3,24 +3,36 @@
     "model_name": "big_random16M_vocab32_50K",
     "probe_dataset": "random",
     "training_config": "classic",
-    "max_iters": "100",
-    "max_train_games": "100",
-    "accuracy": 0.7774621248245239
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "2",
+    "accuracy": 0.8326231241226196
   },
   {
     "model_name": "big_random16M_vocab32_100K",
     "probe_dataset": "random",
     "training_config": "classic",
-    "max_iters": "100",
-    "max_train_games": "100",
-    "accuracy": 0.7497632503509521
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "2",
+    "accuracy": 0.841856062412262
   },
   {
-    "model_name": "big_random16M_vocab32_50K",
+    "model_name": "big_random16M_vocab32_200K",
     "probe_dataset": "random",
     "training_config": "classic",
     "max_iters": "20000",
     "max_train_games": "10000",
-    "accuracy": 0.7959280610084534
+    "num_epochs": "2",
+    "accuracy": 0.8567708730697632
+  },
+  {
+    "model_name": "big_random16M_vocab32_300K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "2",
+    "accuracy": 0.822206437587738
   }
 ]

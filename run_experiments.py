@@ -80,6 +80,11 @@ def parse_arguments():
         action="store_true",
         help="If set, print verbose output to the terminal."
     )
+    parser.add_argument(
+        "--num_epochs",
+        help="If set, print verbose output to the terminal."
+    )
+
 
     return parser.parse_args()
 
@@ -155,7 +160,7 @@ def create_transformer_lens_model(model_name_pth, verbose=False):
     subprocess.run(cmd, check=True)
 
 
-def run_train_probe(model_name, probe_dataset, training_config, max_iters, max_train_games, verbose=False):
+def run_train_probe(model_name, probe_dataset, training_config, max_iters, max_train_games, num_epochs,verbose=False):
     """
     Runs the training command for a given (model, probe_dataset, training_config).
     We always train with:
@@ -177,7 +182,8 @@ def run_train_probe(model_name, probe_dataset, training_config, max_iters, max_t
         "--model_name", model_name,
         "--training_config", training_config,
         "--max_iters", max_iters,
-        "--max_train_games", max_train_games
+        "--max_train_games", max_train_games,
+        "--num_epochs", num_epochs
     ]
     
     if verbose:
@@ -254,7 +260,8 @@ def main():
             d["probe_dataset"],
             d["training_config"],
             d["max_iters"],
-            d["max_train_games"]
+            d["max_train_games"],
+            d["num_epochs"]
         )
         for d in experiment_tracking
         if "accuracy" in d  # or any condition you want
@@ -280,12 +287,12 @@ def main():
             create_transformer_lens_model(model_name_pth, verbose=args.verbose)
 
         # 2) Check if this combination is already done
-        if (model_name, probe_dataset, training_config, args.max_iters, args.max_train_games) in completed_set:
+        if (model_name, probe_dataset, training_config, args.max_iters, args.max_train_games, args.num_epochs) in completed_set:
             if args.verbose:
                 print("[INFO] This combination already trained. Skipping training step.")
         else:
             # 3) Train the probe
-            run_train_probe(model_name, probe_dataset, training_config, args.max_iters, args.max_train_games,verbose=args.verbose)
+            run_train_probe(model_name, probe_dataset, training_config, args.max_iters, args.max_train_games, args.num_epochs,verbose=args.verbose)
             
             # 4) Load the resulting checkpoint to get accuracy
             checkpoint_path = build_checkpoint_filename(model_name, probe_dataset)
@@ -307,6 +314,7 @@ def main():
                         "training_config": training_config,
                         "max_iters": args.max_iters,
                         "max_train_games": args.max_train_games,
+                        "num_epochs": args.num_epochs,
                         "accuracy": accuracy
                     }
                     experiment_tracking.append(experiment_tracked)
@@ -316,7 +324,7 @@ def main():
             else:
                 if args.verbose:
                     print(f"[ERROR] Checkpoint file not found: {checkpoint_path}")
-        append_experiment_entry(experiment_tracked)
+            append_experiment_entry(experiment_tracked)
 
     # Save the tracking data
     #save_experiment_tracking(experiment_tracking)

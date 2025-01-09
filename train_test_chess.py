@@ -55,7 +55,7 @@ LOG_FREQUENCY = 10
 
 
 DATA_DIR = "data/"
-SAVED_PROBE_DIR = "linear_probes/saved_probes/"
+SAVED_PROBE_DIR = "linear_probes/"
 WANDB_LOGGING = False
 
 OTHELLO_SEQ_LEN = 59
@@ -401,7 +401,7 @@ def test_linear_probe_cross_entropy(
 
     checkpoint = torch.load(linear_probe_name, map_location=DEVICE)
     if config.probe_type == 'vanilla':
-        linear_probe_MDRRC = checkpoint["linear_probe"]
+        linear_probe_MDRRC = checkpoint["linear_probe_MDRRC"]
         probe = SingleProbe(
             linear_probe_MDRRC=linear_probe_MDRRC,
             probe_name="dummy_probe",
@@ -543,6 +543,11 @@ def parse_arguments():
     )
     parser.add_argument(
         '--verbose', 
+        action="store_true",
+        help='the path to the input csv file'
+    )
+    parser.add_argument(
+        '--num_epochs', 
         type=int, 
         help='the path to the input csv file'
     )
@@ -554,7 +559,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     WANDB_LOGGING = args.wandb_logging
     args.model_name = "tf_lens_" + args.model_name
-    TRAIN_PARAMS = TrainingParams(max_train_games=args.max_train_games,max_iters=args.max_iters)
+    TRAIN_PARAMS = TrainingParams(max_train_games=args.max_train_games,max_iters=args.max_iters,num_epochs=args.num_epochs)
 
 #    TRAIN_PARAMS.max_iters = args.max_iters
     #TRAIN_PARAMS.max_train_games = args.max_train_games
@@ -582,7 +587,9 @@ if __name__ == "__main__":
         if args.probe == 'piece':
             saved_probes = []
             for i in range(1):
-                saved_probes.append(f'tf_lens_{args.probe_dataset}_8layers_ckpt_no_optimizer_chess_piece_probe_layer_{i+5}.pth')
+                model_trained_on_name = args.model_name
+                probe_name = f'{model_trained_on_name}_chess_{args.probe}_probe_type_vanilla_layer_5_test_{args.test_games_dataset}.pth'
+                saved_probes.append(probe_name)
         elif args.probe == "skill":
             saved_probes = [
                 "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"
@@ -601,10 +608,12 @@ if __name__ == "__main__":
             # We will populate all parameters using information in the probe state dict
             with open(probe_file_location, "rb") as f:
                 state_dict = torch.load(f, map_location=torch.device(DEVICE))
-                print(state_dict.keys())
+                #print(state_dict.keys())
                 for key in state_dict.keys():
-                    if key != "linear_probe_MDRRC":
+                    if key != "linear_probe_MRRDC":
                         print(key, state_dict[key])
+                    else:
+                        print(key,state_dict[key].shape)
 
                 config = chess_utils.find_config_by_name(state_dict["config_name"])
                 layer = state_dict["layer"]
