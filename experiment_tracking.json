@@ -115,5 +115,50 @@
     "max_train_games": "10000",
     "num_epochs": "3",
     "accuracy": 0.9024697542190552
+  },
+  {
+    "model_name": "lichess_karvhyp_500K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.9422348737716675
+  },
+  {
+    "model_name": "lichess_karvhyp_400K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.9282670617103577
+  },
+  {
+    "model_name": "lichess_karvhyp_300K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.9211648106575012
+  },
+  {
+    "model_name": "lichess_karvhyp_200K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.8508523106575012
+  },
+  {
+    "model_name": "lichess_karvhyp_100K",
+    "probe_dataset": "random",
+    "training_config": "classic",
+    "max_iters": "20000",
+    "max_train_games": "10000",
+    "num_epochs": "3",
+    "accuracy": 0.8158144354820251
   }
 ]

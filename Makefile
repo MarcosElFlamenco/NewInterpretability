@@ -12,16 +12,7 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 RANDOM_MODEL_NAME := big_random16M_vocab32_50K
 LICHESS_MODEL_NAME := tf_lens_lichess9gb_vocab32_175K
 OLD_MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer_Bonus
-PROBE_DATASET := random
-PROBE_CONTROL_DATASET := dummy
-TEST_GAMES_DATASET := random
-TRAINING_CONFIG := classic
-
 MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
-MAX_ITERS := 20000
-MAX_TRAIN_GAMES := 10000
-NUM_EPOCHS := 3
-
 B1 := skypilot-workdir-oscar-3286bef5
 
 
@@ -59,19 +50,26 @@ test_control_probe:
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
 
-##this function is not debuged yet
-##TODO check that this works as required
+PROBE_DATASET := lichess
+PROBE_CONTROL_DATASET := dummy
+TEST_GAMES_DATASET := random
+TRAINING_CONFIG := classic
+MAX_ITERS := 20000
+MAX_TRAIN_GAMES := 10000
+NUM_EPOCHS := 3
 
+
+##todo fix test option
+##todo, allow training to start up from probe checkpoint 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
 		--models lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K \
-		--probe_datasets lichess \
+		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
 		--max_iters $(MAX_ITERS) \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
-		--test \
 		--verbose
 
 
