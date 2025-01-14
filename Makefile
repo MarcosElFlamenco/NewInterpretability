@@ -64,8 +64,8 @@ test_control_probe:
 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
-		--models lichess9gb_vocab32_150K \
-		--probe_datasets random \
+		--models lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K \
+		--probe_datasets lichess \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
 		--max_iters $(MAX_ITERS) \
