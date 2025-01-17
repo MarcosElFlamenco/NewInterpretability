@@ -228,7 +228,7 @@ def build_checkpoint_filename(model_name, training_config,probe_dataset,max_trai
     Adjust as needed for your naming convention. For now, let's do something literal:
     """
     tf_lens_model_name = TRANSFORMER_LENS_PREFIX + model_name
-    linear_probe_name = f"{tf_lens_model_name}_{training_config}_{probe_dataset}_{max_train_games}_piece_probe.pth"
+    linear_probe_name = f"{tf_lens_model_name}_{training_config}_{probe_dataset}_{max_train_games}_chess_piece_probe.pth"
  
     return os.path.join(LINEAR_PROBE_FOLDER, linear_probe_name)
 

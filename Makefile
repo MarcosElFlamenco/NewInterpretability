@@ -67,7 +67,7 @@ TEST_GAMES_DATASET := random
 TRAINING_CONFIG := classic
 MAX_ITERS := 20000
 MAX_TRAIN_GAMES := 10000
-NUM_EPOCHS := 3
+NUM_EPOCHS := 4
 
 
 ##todo fix test option
