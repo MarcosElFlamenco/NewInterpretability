@@ -31,6 +31,17 @@ train_probe:
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS)
 
+happy_train_probe:
+	python train_test_chess.py \
+		--mode train \
+		--probe piece \
+		--probe_dataset random \
+		--model_name lichess_karvhyp_500K \
+		--training_config classic \
+		--max_iters 20000 \
+		--max_train_games 5000 \
+		--num_epochs 3 \
+
 
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
@@ -63,16 +74,13 @@ NUM_EPOCHS := 3
 ##todo, allow training to start up from probe checkpoint 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K \
+		--models lichess_karvhyp_500K \
 		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
-		--max_iters $(MAX_ITERS) \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
 		--verbose
-
-
 
 remote_train_probe:
 	sky jobs launch -c boardCluster remote/train_probes.yaml

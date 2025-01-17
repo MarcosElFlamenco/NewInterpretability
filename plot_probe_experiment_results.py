@@ -50,7 +50,6 @@ def plot_accuracy_by_iterations(
     # --- 2) Filter the data
     filtered_data = []
     for row in data:
-        print(row)
         # skip if doesn't start with any of the chosen model_prefixes
         if not any(row["model_name"].startswith(pref) for pref in model_prefixes):
             continue

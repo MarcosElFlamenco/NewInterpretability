@@ -1,6 +1,7 @@
 import torch
 import pandas as pd
 from torch import Tensor
+from collections import deque
 from dataclasses import dataclass, field
 import collections
 from typing import Optional
@@ -14,6 +15,7 @@ import chess_utils
 import pickle
 import einops
 import numpy
+import os
 
 MODEL_DIR = "models/"
 D_MODEL = 512
@@ -81,11 +83,13 @@ class SingleProbe:
     probe_name: str
     optimiser: torch.optim.AdamW
     logging_dict: dict
+    epoch : int
     loss: torch.Tensor = torch.tensor(0.0)
     accuracy: torch.Tensor = torch.tensor(0.0)
     accuracy_queue: collections.deque = field(
         default_factory=lambda: collections.deque(maxlen=1000)
     )
+
     def forward_pass(self,resid_post_BLD):
         probe_out_MBLRRC = einsum(
             "batch pos d_model, modes d_model rows cols options -> modes batch pos rows cols options",
@@ -102,6 +106,7 @@ class SingleProbeCast:
     probe_name: str
     optimiser: torch.optim.AdamW
     logging_dict: dict
+    epoch: int
     loss: torch.Tensor = torch.tensor(0.0)
     accuracy: torch.Tensor = torch.tensor(0.0)
     accuracy_queue: collections.deque = field(
@@ -151,7 +156,7 @@ def init_logging_dict(
         wandb_run_name += "_levels"
         for level in config.levels_of_interest:
             wandb_run_name += f"_{level}"
-
+    print(f'when starting logging dic, train params has the following info {train_params.num_epochs}')
     logging_dict = {
         "linear_probe_name": config.linear_probe_name,
         "layer": layer,
@@ -416,6 +421,57 @@ def prepare_data_batch(
 
     return state_stack_one_hot_MBLRRC, resid_post_dict_BLD
 
+def load_probe_from_checkpoint(linear_probe_name, config, train_params, logging_dict):
+    checkpoint = torch.load(linear_probe_name, map_location=DEVICE)
+    if config.probe_type == 'vanilla':
+        print('reloading vanilla probe')
+        linear_probe_MDRRC = checkpoint["linear_probe_MDRRC"]
+        linear_probe_MDRRC.requires_grad = True
+        optimiser = torch.optim.AdamW(
+        [linear_probe_MDRRC],
+        lr=train_params.lr,
+        betas=(train_params.beta1, train_params.beta2),
+        weight_decay=train_params.wd,
+    )
+        print(f"From the checkpoint, the number of epochs is {checkpoint["num_epochs"]}")
+        probe = SingleProbe(
+            linear_probe_MDRRC=linear_probe_MDRRC,
+            probe_name=linear_probe_name,
+            optimiser=optimiser,
+            logging_dict=logging_dict,
+            loss=checkpoint["final_loss"],
+            accuracy=checkpoint["accuracy"],
+            accuracy_queue=deque(maxlen=1000),
+            epoch = checkpoint["num_epochs"],
+        )
+    elif config.probe_type == 'cast':
+        print("reloading cast probe")
+        linear_DN = checkpoint["linear_DN"]
+        linear_MNRRC = checkpoint["linear_MNRRC"]
+
+        linear_DN.requires_grad = True
+        linear_MNRRC.requires_grad = True
+
+        logger.info(f"first tensor shape: {linear_DN.shape} second tensor shape {linear_MNRRC.shape}")
+        optimiser = torch.optim.AdamW(
+            [linear_DN,linear_MNRRC],
+            lr=train_params.lr,
+            betas=(train_params.beta1, train_params.beta2),
+            weight_decay=train_params.wd,
+        )
+    
+        probe = SingleProbeCast(
+            linear_DN=linear_DN,
+            linear_MNRRC=linear_MNRRC,
+            probe_name=linear_probe_name,
+            optimiser=optimiser,
+            logging_dict=logging_dict,
+            loss=checkpoint["final_loss"],
+            accuracy=checkpoint['accuracy'],
+            accuracy_queue=deque(maxlen=1000),
+            epoch = checkpoint["num_epochs"],
+        )
+    return probe
 
 def populate_probes_dict(
     layers: list[int],
@@ -425,19 +481,24 @@ def populate_probes_dict(
     dataset_prefix,
     model_name,
     n_layers,
-    probe_type,
+    args,
 ) -> dict[int, SingleProbe]:
     probes = {}
+    probe_type = config.probe_type
     for layer in layers:
-
         logging_dict = init_logging_dict(
-            layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, probe_type
+            layer, config, split, dataset_prefix, model_name, n_layers, train_params, probe_type
         )
+        print(f"logging dict has the following info {logging_dict["num_epochs"]}")
+
         linear_probe_name = (
-            f"{PROBE_DIR}{model_name}_{config.linear_probe_name}_type_{probe_type}_layer_{layer}_test_{dataset_prefix}.pth"
+            f"{PROBE_DIR}{model_name}_{args.training_config}_{args.probe_dataset}_{args.max_train_games}_{config.linear_probe_name}.pth"
         )
-        print(f"probe type is {probe_type}")
-        if probe_type == 'vanilla':
+        print(f"This probe will be named {linear_probe_name}")
+        if os.path.exists(linear_probe_name):
+            print("Found checkpoint with this name, recovering checkpoint and resuming training")
+            probes[layer] = load_probe_from_checkpoint(linear_probe_name,config,train_params,logging_dict)
+        elif probe_type == 'vanilla':
             print(f"Found {probe_type} probe type, initialising vanilla probe")
             linear_probe_MDRRC = torch.randn(
                 train_params.modes,
@@ -462,6 +523,7 @@ def populate_probes_dict(
                 probe_name=linear_probe_name,
                 optimiser=optimiser,
                 logging_dict=logging_dict,
+                epoch = 0
             )
         elif probe_type == 'cast':
             print("creating cast probe")
@@ -496,6 +558,7 @@ def populate_probes_dict(
                 probe_name=linear_probe_name,
                 optimiser=optimiser,
                 logging_dict=logging_dict,
+                epoch = 0
             )
  
     return probes

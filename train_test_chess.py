@@ -97,7 +97,7 @@ def linear_probe_forward_pass(
         with open('prediction .txt','w') as f:
             f.write(str(predictions[0,:,:,:]))
             
-        print("output predictions")
+ 
         
         with open('accuracy_grid.txt','w') as f:
             f.write(str(accuracy_grid[0,:,:,:]))
@@ -189,11 +189,14 @@ def train_linear_probe_cross_entropy(
     probe_data: LinearProbeData,
     config: Config,
     train_params: TrainingParams,
+    model_name: str,
+    config_name: str,
+    probe_dataset: str,
+    max_games: int,
 ) -> dict[int, float]:
     """Trains a linear probe on the train set, contained in probe_data. Saves all probes to disk.
     Returns a dict of layer: final avg_acc over the last 1,000 iterations.
     This dict is also used as an end to end test for the function."""
-    print(f"will be running this many iters {TRAIN_PARAMS.max_iters}")
     first_layer = min(probes.keys())
     layers = list(probes.keys())
     all_layers_str = "_".join([str(layer) for layer in layers])
@@ -222,9 +225,15 @@ def train_linear_probe_cross_entropy(
         )
 
     current_iter = 0
+    ## note that probes is a single probe (it should be a list of size 1)
+    one_probe = probes[5]
+    starting_epoch = one_probe.epoch
     print(f"val games {val_games}, train_games {train_games}, num games {num_games}")
-    print(f"we will be training for {train_params.num_epochs} epochs")
-    for epoch in range(train_params.num_epochs):
+
+    print(f"Looking to train a total of {train_params.num_epochs} epochs, {starting_epoch} epochs already trained, so we will train another {train_params.num_epochs - starting_epoch} epochs")
+
+
+    for epoch in range(starting_epoch,train_params.num_epochs):
         full_train_indices = torch.randperm(train_games)
         for i in tqdm(range(0, train_games, BATCH_SIZE)):
             indices_B = full_train_indices[i : i + BATCH_SIZE]  # shape batch_size
@@ -297,23 +306,32 @@ def train_linear_probe_cross_entropy(
                         )
             current_iter += BATCH_SIZE
     final_accs = {}
+    print("and right before saving the checkpoint, the num epochs is {train_params.num_epochs}")
     for layer in probes:
         checkpoint = {
             "linear_probe_MDRRC": probes[layer].linear_probe_MDRRC,
             "final_loss": probes[layer].loss,
             "iters": current_iter,
-            "epochs": epoch,
-            "acc": probes[layer].accuracy,
+            "model_name": model_name,
+            "training_config": config_name,
+            "probe_dataset": probe_dataset,
+            "max_games": max_games,
+            "num_epochs": train_params.num_epochs,
+            "accuracy_queue": probes[layer].accuracy_queue,
+            "accuracy": probes[layer].accuracy
         }
         # Update the checkpoint dictionary with the contents of logging_dict
         checkpoint.update(probes[layer].logging_dict)
         torch.save(checkpoint, probes[layer].probe_name)
-        final_accs[layer] = sum(probes[layer].accuracy_queue) / len(probes[layer].accuracy_queue)
-        logger.info(f"layer {layer}, final acc: {final_accs[layer]}")
+        if(probes[layer].accuracy_queue):
+            final_accs[layer] = sum(probes[layer].accuracy_queue) / len(probes[layer].accuracy_queue)
+            logger.info(f"layer {layer}, final acc: {final_accs[layer]}")
+        else:
+            logger.info(f"layer {layer}, no final acc, because no training")
     return final_accs
 
 
-def construct_linear_probe_data(
+def construct_linear_probe_data( 
     input_dataframe_file: str,
     dataset_prefix: str,
     n_layers: int,
@@ -561,6 +579,7 @@ if __name__ == "__main__":
     WANDB_LOGGING = args.wandb_logging
     args.model_name = "tf_lens_" + args.model_name
     TRAIN_PARAMS = TrainingParams(max_train_games=args.max_train_games,max_iters=args.max_iters,num_epochs=args.num_epochs)
+    print(f"TRAIN_PARAMS is storing the following value for num_epochs {TRAIN_PARAMS.num_epochs}")
 
 #    TRAIN_PARAMS.max_iters = args.max_iters
     #TRAIN_PARAMS.max_train_games = args.max_train_games
@@ -650,10 +669,12 @@ if __name__ == "__main__":
                 logging_dict = init_logging_dict(
                     layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, config.probe_type
                 )
+                print(f"and now {TRAIN_PARAMS.num_epochs}")
 
                 avg_accuracy = test_linear_probe_cross_entropy(
                     probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS
                 )
+
     elif args.mode == "train":
         print('training probes')
         if args.training_config == 'classic':
@@ -708,8 +729,7 @@ if __name__ == "__main__":
 
 #        layers = list(range(first_layer, last_layer + 1))
         layers = [5]
-        probe_type = 'vanilla'
-        print("populating probes dict")
+        print(f"the train params from pop probe dict has the following info {TRAIN_PARAMS.num_epochs}")
         probes = populate_probes_dict(
             layers,
             config,
@@ -718,6 +738,8 @@ if __name__ == "__main__":
             args.probe_dataset,
             model_name,
             n_layers,
-            probe_type,
+            args
         )
-        train_linear_probe_cross_entropy(probes, probe_data, config, TRAIN_PARAMS)
+
+        print(f"and now {TRAIN_PARAMS.num_epochs}")
+        train_linear_probe_cross_entropy(probes, probe_data, config, TRAIN_PARAMS,model_name,args.training_config,args.probe_dataset, max_games)

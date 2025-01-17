@@ -715,6 +715,7 @@ piece_config = Config(
     max_val=6,
     custom_board_state_function=board_to_piece_state,
     linear_probe_name="chess_piece_probe",
+    probe_type="vanilla"
 )
 
 custom_piece_config = Config(
