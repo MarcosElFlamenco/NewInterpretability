@@ -74,7 +74,7 @@ NUM_EPOCHS := 4
 ##todo, allow training to start up from probe checkpoint 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_500K \
+		--models lichess_karvhyp_400K \
 		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets random \
