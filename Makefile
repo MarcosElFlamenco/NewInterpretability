@@ -64,20 +64,20 @@ test_control_probe:
 PROBE_DATASET := lichess
 PROBE_CONTROL_DATASET := dummy
 TEST_GAMES_DATASET := random
-TRAINING_CONFIG := classic
+TRAINING_CONFIG := cast64
 MAX_ITERS := 20000
 MAX_TRAIN_GAMES := 10000
-NUM_EPOCHS := 4
+NUM_EPOCHS := 1
 
 
 ##todo fix test option
 ##todo, allow training to start up from probe checkpoint 
 run_probe_experiments:
 	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_400K \
+		--models lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K \
 		--probe_datasets random \
 		--training_configs $(TRAINING_CONFIG) \
-		--test_games_datasets random \
+		--test_games_datasets lichess \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
 		--verbose

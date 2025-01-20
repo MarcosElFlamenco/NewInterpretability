@@ -237,7 +237,7 @@ def plot_probe_loss(
 
         plt.plot(accuracy_list, label=label)
 
-    plt.xlabel("Epochs")
+    plt.xlabel("Iters")
     plt.ylabel("Accuracy")
     plt.title("Probe Accuracy Over Iters")
     plt.legend()

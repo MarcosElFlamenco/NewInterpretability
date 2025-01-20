@@ -682,8 +682,8 @@ if __name__ == "__main__":
             config = chess_utils.piece_config
         elif args.training_config == 'custom':
             config = chess_utils.custom_piece_config
-        elif args.training_config == 'cast':
-            config = chess_utils.cast_piece_config
+        elif args.training_config == 'cast64':
+            config = chess_utils.cast64_piece_config
         elif args.probe == "skill":
             config = chess_utils.skill_config
 
