@@ -723,7 +723,6 @@ custom_piece_config = Config(
     max_val=6,
     custom_board_state_function=board_to_piece_state,
     linear_probe_name="my_chess_piece_probe",
-    levels_of_interest=[5,6],
     column_name='transcript',
 )
 
@@ -731,11 +730,30 @@ cast64_piece_config = Config(
     min_val=-6,
     max_val=6,
     custom_board_state_function=board_to_piece_state,
-    linear_probe_name="cast_chess_piece_probe",
-    levels_of_interest=[5],
+    linear_probe_name="cast64_chess_piece_probe",
     column_name='transcript',
     probe_type='cast',
     cast_rank=64
+)
+
+cast32_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="cast32_chess_piece_probe",
+    column_name='transcript',
+    probe_type='cast',
+    cast_rank=32
+)
+
+cast1_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="cast32_chess_piece_probe",
+    column_name='transcript',
+    probe_type='cast',
+    cast_rank=1
 )
 
 pin_config = Config(

@@ -16,11 +16,16 @@ import subprocess
 import itertools
 import json
 import torch
+import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 # -----------------------------------------------------------------------------
-MODEL_FOLDER = "models"
+MODEL_FOLDER = "../models"
+TF_LENS_MODELS = 'tf_lens_models'
 TRANSFORMER_LENS_PREFIX = "tf_lens_"
 
 # Where we expect to find / save our linear probe checkpoints
@@ -111,6 +116,7 @@ def append_experiment_entry(entry_dict, file_path=TRACKING_FILE):
     """
     # 1) Load existing data
     existing_data = load_experiment_tracking(file_path)
+
     
     # 2) Append the new entry (a dict) to the list
     existing_data.append(entry_dict)
@@ -133,7 +139,7 @@ def model_exists_as_transformer_lens(model_name_pth):
     Checks if a Transformer Lens version of the model exists.
     E.g. checks for `models/tf_lens_modelName`.
     """
-    tf_lens_path = os.path.join(MODEL_FOLDER, TRANSFORMER_LENS_PREFIX + model_name_pth)
+    tf_lens_path = os.path.join(MODEL_FOLDER, TF_LENS_MODELS, TRANSFORMER_LENS_PREFIX + model_name_pth)
     return os.path.isdir(tf_lens_path) or os.path.isfile(tf_lens_path)
 
 
@@ -272,10 +278,9 @@ def main():
     # TRAINING SECTION
     for model_name, probe_dataset, training_config in combos:
         model_name_pth = model_name + ".pth"
-        if args.verbose:
-            print("\n----------------------------------------------------")
-            print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}")
-            print("----------------------------------------------------\n")
+        print("\n----------------------------------------------------")
+        print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}, max_train_games={args.max_train_games}")
+        print("----------------------------------------------------\n")
 
         # 1) Check if the transformer lens model exists
         if not model_exists_as_transformer_lens(model_name_pth):
@@ -283,11 +288,13 @@ def main():
 
         # 2) Check if this combination is already done or started
         keepTraining = True
+        experiment = None
         if (model_name, training_config, probe_dataset, args.max_train_games) in completed_set:
             required_epochs = args.num_epochs
             experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
             experiment = experiment_tracking[experiment_index]
             trained_epochs = experiment["num_epochs"]
+            print(f"from tracking file num epochs is {trained_epochs}")
             if trained_epochs >= required_epochs:
                 print("This combination has already been trained with at least this many epochs")
                 keepTraining = False
@@ -295,7 +302,6 @@ def main():
                 print("A few epochs of this combination have been trained, recovering checkpoint and finishing training")
         if keepTraining:
             # 3) Train the probe
-            print('we did get here')
             run_train_probe(model_name, probe_dataset, training_config, args.max_train_games, args.num_epochs,verbose=args.verbose)
             # 4) Load the resulting checkpoint to get accuracy
 
@@ -305,23 +311,36 @@ def main():
                 # Suppose there's an "accuracy" key in the checkpoint
 
                 accuracy = ckpt.get("accuracy", None).item()
-                print(type(accuracy))
                 
                 if accuracy is not None:
                     if args.verbose:
                         print(f"[INFO] Loaded checkpoint. Accuracy = {accuracy}")
                     # Store the result in our tracking list
-                    
+#                    print(f"model name {experiment["model_name"]} training config {experiment["training_config"]}, probe dataset {experiment["probe_dataset"]}, max_games {experiment["max_train_games"]}")
+
+                    #assert experiment["model_name"] == model_name
+                    #assert experiment["training_config"] == training_config
+                    #assert experiment["probe_dataset"] == probe_dataset
+                    #assert experiment["max_train_games"] == args.max_train_games
+                    previous_accuracies = []
+                    if experiment:
+                        previous_accuracies = experiment["accuracy_list"]
+                        experiment_tracking.remove(experiment)
+ 
                     experiment_tracked = {
                         "model_name": model_name,
                         "training_config": training_config,
                         "probe_dataset": probe_dataset,
                         "max_train_games": args.max_train_games,
                         "num_epochs": args.num_epochs,
-                        "accuracy_list": list(ckpt["accuracy_queue"]),
+                        "accuracy_list": previous_accuracies + list(ckpt["accuracy_queue"]),
                         "accuracy": accuracy,
                     }
-                    append_experiment_entry(experiment_tracked)
+                    experiment_tracking.append(experiment_tracked)
+
+                    with open(TRACKING_FILE, "w", encoding="utf-8") as f:
+                        json.dump(experiment_tracking, f, indent=2)
+
                     print(f"Saved {checkpoint_path} probe to {TRACKING_FILE}")
 
                 else:

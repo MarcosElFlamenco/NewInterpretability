@@ -23,10 +23,11 @@ import othello_utils
 from chess_utils import PlayerColor, Config
 import probe_training_utils as utils
 from probe_training_utils import TrainingParams, SingleProbe, SingleProbeCast, LinearProbeData, get_transformer_lens_model_utils, process_dataframe, get_othello_seqs_string, get_board_seqs_string, get_othello_seqs_int, get_board_seqs_int, get_skill_stack, get_othello_state_stack, prepare_data_batch, populate_probes_dict, TrainingParams, get_one_hot_range, init_logging_dict
+import warnings
 
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 debug = False
-burger = 0
 
 logger = logging.getLogger(__name__)
 
@@ -74,42 +75,6 @@ def linear_probe_forward_pass(
     ground_truth = state_stack_one_hot_MBLRRC[0].argmax(-1)
     accuracy_grid = (predictions == ground_truth)
     accuracy = accuracy_grid.float().mean()
- 
-    global burger
-    burger += 1
-
-    if debug and burger == 200:
-        torch.set_printoptions(threshold=torch.inf) 
-        torch.set_printoptions(sci_mode=False, precision=4, threshold=torch.inf)
-        with open('probe_out.txt','w') as f:
-            f.write(str(probe_out_MBLRRC[0,0,:,:,:,7]))
-            
-        print('output forward pass') 
-        with open('one_hot.txt','w') as f:
-            f.write(str(state_stack_one_hot_MBLRRC[0,0,:,:,:,7]))
-            
-        print('output one hot')
-
-        with open('ground_truth.txt','w') as f:
-            f.write(str(ground_truth[0,:,:,:]))
-            
-        print('output ground truth') 
-        with open('prediction .txt','w') as f:
-            f.write(str(predictions[0,:,:,:]))
-            
- 
-        
-        with open('accuracy_grid.txt','w') as f:
-            f.write(str(accuracy_grid[0,:,:,:]))
-            
-        print('output accuracy grid') 
-        print(f" accuracy : {accuracy}")
-     
-
-        exit()
-    assert probe_out_MBLRRC.shape == state_stack_one_hot_MBLRRC.shape
-
-   
 
     probe_log_probs_MBLRRC = probe_out_MBLRRC.log_softmax(-1)
     probe_correct_log_probs_MLRR = (
@@ -227,11 +192,11 @@ def train_linear_probe_cross_entropy(
     current_iter = 0
     ## note that probes is a single probe (it should be a list of size 1)
     one_probe = probes[5]
+    #print(f"the probe that is being trained looks like this: {one_probe}")
     starting_epoch = one_probe.epoch
     print(f"val games {val_games}, train_games {train_games}, num games {num_games}")
 
-    print(f"Looking to train a total of {train_params.num_epochs} epochs, {starting_epoch} epochs already trained, so we will train another {train_params.num_epochs - starting_epoch} epochs")
-
+    print(f"Training to {train_params.num_epochs} epochs, {starting_epoch} already trained, {train_params.num_epochs - starting_epoch} left")
 
     for epoch in range(starting_epoch,train_params.num_epochs):
         full_train_indices = torch.randperm(train_games)
@@ -243,7 +208,6 @@ def train_linear_probe_cross_entropy(
             )
 
             for layer in probes:
-                #print(f"Forward pass on layer {layer}, the probe is {probes[layer]}")
                 probes[layer].loss, probes[layer].accuracy = linear_probe_forward_pass(
                     probes[layer],
                     state_stack_one_hot_MBLRRC,
@@ -255,7 +219,7 @@ def train_linear_probe_cross_entropy(
                 probes[layer].optimiser.step()
                 probes[layer].optimiser.zero_grad()
 
-                probes[layer].accuracy_queue.append(probes[layer].accuracy.item())
+                probes[layer].accuracy_queue.append(round(probes[layer].accuracy.item(),2))
 
             if (i+1) % LOG_FREQUENCY == 0:
                 if WANDB_LOGGING:
@@ -306,10 +270,8 @@ def train_linear_probe_cross_entropy(
                         )
             current_iter += BATCH_SIZE
     final_accs = {}
-    print("and right before saving the checkpoint, the num epochs is {train_params.num_epochs}")
     for layer in probes:
         checkpoint = {
-            "linear_probe_MDRRC": probes[layer].linear_probe_MDRRC,
             "final_loss": probes[layer].loss,
             "iters": current_iter,
             "model_name": model_name,
@@ -320,6 +282,13 @@ def train_linear_probe_cross_entropy(
             "accuracy_queue": probes[layer].accuracy_queue,
             "accuracy": probes[layer].accuracy
         }
+        if isinstance(probes[layer],SingleProbe):
+            checkpoint["linear_probe_MDRRC"] = probes[layer].linear_probe_MDRRC
+        elif probes[layer].isinstance(SingleProbeCast):
+            checkpoint["linear_DN"] = probes[layer].linear_probe_DN
+            checkpoint["linear_MNRRC"] = probes[layer].linear_probe_MDRRC
+
+
         # Update the checkpoint dictionary with the contents of logging_dict
         checkpoint.update(probes[layer].logging_dict)
         torch.save(checkpoint, probes[layer].probe_name)
@@ -339,6 +308,7 @@ def construct_linear_probe_data(
     config: Config,
     max_games: int,
     device: torch.device,
+    verbose: bool,
 ) -> LinearProbeData:
     """We need the following data to train or test a linear probe:
     - The layer to probe in the GPT
@@ -352,13 +322,18 @@ def construct_linear_probe_data(
 
     model = get_transformer_lens_model_utils(model_name, n_layers, device)
     user_state_dict_one_hot_mapping, df = process_dataframe(input_dataframe_file, config)
-    print(f"user state dict one hot {user_state_dict_one_hot_mapping}")
+    if verbose:
+        print(f"user state dict one hot {user_state_dict_one_hot_mapping}")
     #this is none and probably shouldnt be
+    print(f"max games {max_games}")
+    
     df = df[:max_games]
     board_seqs_string_Bl = get_board_seqs_string(df)
-    print(f'seqs string {board_seqs_string_Bl}')
+    if verbose:
+        print(f'seqs string {board_seqs_string_Bl}')
     board_seqs_int_Bl = get_board_seqs_int(df)
-    print(f'seqs int {board_seqs_int_Bl}')
+    if verbose:
+        print(f'seqs int {board_seqs_int_Bl}')
     skill_stack_B = None
     if config.probing_for_skill:
         skill_stack_B = get_skill_stack(config, df)
@@ -457,10 +432,6 @@ def test_linear_probe_cross_entropy(
     full_test_indices = torch.arange(0, num_games)
     num_games = BATCH_SIZE
     for i in tqdm(range(0, num_games, BATCH_SIZE)):
-#        print(f'This is currently iteration {i}')
-#        print(f'The current accuracy list is {accuracy_list}')
-#        print(f'The current loss list is {loss_list}')
-
         indices_B = full_test_indices[i : i + BATCH_SIZE]  # shape batch_size
 
         state_stack_one_hot_MBLRRC, resid_post_dict_BLD = prepare_data_batch(
@@ -474,8 +445,6 @@ def test_linear_probe_cross_entropy(
             resid_post_dict_BLD[layer],
             one_hot_range,
         )
-#        print(loss, accuracy)
-
         accuracy_list.append(accuracy.item())
         loss_list.append(loss.item())
 
@@ -577,17 +546,13 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
     WANDB_LOGGING = args.wandb_logging
-    args.model_name = "tf_lens_" + args.model_name
+    args.original_model_name = "tf_lens_" + args.model_name
+    args.model_name = "tf_lens_models/tf_lens_" + args.model_name
     TRAIN_PARAMS = TrainingParams(max_train_games=args.max_train_games,max_iters=args.max_iters,num_epochs=args.num_epochs)
-    print(f"TRAIN_PARAMS is storing the following value for num_epochs {TRAIN_PARAMS.num_epochs}")
-
-#    TRAIN_PARAMS.max_iters = args.max_iters
-    #TRAIN_PARAMS.max_train_games = args.max_train_games
-    #TRAIN_PARAMS.num_epochs = TRAIN_PARAMS.max_iters // TRAIN_PARAMS.max_train_games
 
 
     if args.mode == "test":
-        print('Testing probes')
+        print('TESTING PROBES')
         # saved_probes = [
         #     file
         #     for file in os.listdir(SAVED_PROBE_DIR)
@@ -628,16 +593,9 @@ if __name__ == "__main__":
             # We will populate all parameters using information in the probe state dict
             with open(probe_file_location, "rb") as f:
                 state_dict = torch.load(f, map_location=torch.device(DEVICE))
-                #print(state_dict.keys())
-#                for key in state_dict.keys():
-                    #if key != "linear_probe_MRRDC":
-                        #print(key, state_dict[key])
-                    #else:
-                        #print(key,state_dict[key].shape)
-
                 #config = chess_utils.find_config_by_name(state_dict["config_name"])
                 layer = state_dict["layer"]
-                ##model_name = state_dict["model_name"]
+                #model_name = state_dict["model_name"]
                 n_layers = 8
                 model_name = args.model_name
                 dataset_prefix = state_dict["dataset_prefix"]
@@ -655,7 +613,6 @@ if __name__ == "__main__":
                 config = chess_utils.set_config_min_max_vals_and_column_name(
                     config, input_dataframe_file, args.test_games_dataset 
                 )
-                print(f"input dataframe file {input_dataframe_file}")
                 probe_data = construct_linear_probe_data(
                     input_dataframe_file,
                     args.test_games_dataset,
@@ -664,26 +621,33 @@ if __name__ == "__main__":
                     config,
                     TRAIN_PARAMS.max_test_games,
                     DEVICE,
+                    args.verbose
                 )
 
                 logging_dict = init_logging_dict(
                     layer, config, split, dataset_prefix, model_name, n_layers, TRAIN_PARAMS, config.probe_type
                 )
-                print(f"and now {TRAIN_PARAMS.num_epochs}")
 
                 avg_accuracy = test_linear_probe_cross_entropy(
                     probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS
                 )
 
     elif args.mode == "train":
-        print('training probes')
+        print('TRAINING PROBE')
         if args.training_config == 'classic':
-            print(f"Found config parameter: {args.training_config}")
             config = chess_utils.piece_config
         elif args.training_config == 'custom':
             config = chess_utils.custom_piece_config
         elif args.training_config == 'cast64':
             config = chess_utils.cast64_piece_config
+        elif args.training_config == 'cast32':
+            config = chess_utils.cast32_piece_config
+        elif args.training_config == 'cast16':
+            config = chess_utils.cast16_piece_config
+        elif args.training_config == 'cast8':
+            config = chess_utils.cast8_piece_config
+        elif args.training_config == 'cast1':
+            config = chess_utils.cast1_piece_config
         elif args.probe == "skill":
             config = chess_utils.skill_config
 
@@ -702,11 +666,6 @@ if __name__ == "__main__":
         model_name = args.model_name
         indexing_function = None
 
-        if othello:
-            model_name = "Baidicoot/Othello-GPT-Transformer-Lens"
-            config = chess_utils.othello_config
-            dataset_prefix = "othello_"
-            indexing_function = othello_utils.get_othello_all_list_indices
 
         input_dataframe_file = f"{DATA_DIR}{args.probe_dataset}_{split}.csv"
         config = chess_utils.set_config_min_max_vals_and_column_name(
@@ -725,21 +684,20 @@ if __name__ == "__main__":
             config,
             max_games,
             DEVICE,
+            args.verbose
         )
 
 #        layers = list(range(first_layer, last_layer + 1))
         layers = [5]
-        print(f"the train params from pop probe dict has the following info {TRAIN_PARAMS.num_epochs}")
         probes = populate_probes_dict(
             layers,
             config,
             TRAIN_PARAMS,
             split,
             args.probe_dataset,
-            model_name,
+            args.original_model_name,
             n_layers,
             args
         )
 
-        print(f"and now {TRAIN_PARAMS.num_epochs}")
         train_linear_probe_cross_entropy(probes, probe_data, config, TRAIN_PARAMS,model_name,args.training_config,args.probe_dataset, max_games)

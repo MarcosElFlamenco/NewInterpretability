@@ -21,7 +21,7 @@ LOAD_AND_CONVERT_CHECKPOINT = True
 
 device = "cpu"
 
-MODEL_DIR = "models/"
+MODEL_DIR = "../models/"
 
 n_heads = 8
 n_layers = 8
@@ -40,14 +40,18 @@ parser.add_argument(
 args = parser.parse_args()
 
 model_name = args.model_name
-print(f"{MODEL_DIR}{model_name}")
-if not os.path.exists(f"{MODEL_DIR}{model_name}"):
+model_base = model_name.rpartition('_')[0]
+model_path = f"{MODEL_DIR}{model_base}/{model_name}"
+print(f"model path is {model_path}")
+print(os.path.exists(model_path))
+
+if not os.path.exists(model_path):
     state_dict = utils.download_file_from_hf("adamkarvonen/chess_llms", model_name)
     model = torch.load(state_dict, map_location=device)
     torch.save(model, f"{MODEL_DIR}{model_name}")
 
 
-checkpoint = torch.load(f"{MODEL_DIR}{model_name}", map_location=device)
+checkpoint = torch.load(model_path, map_location=device)
 
 # Print the keys of the checkpoint dictionary
 print(checkpoint.keys())
@@ -164,7 +168,7 @@ if LOAD_AND_CONVERT_CHECKPOINT:
 
     model.load_and_process_state_dict(convert_nanogpt_weights(synthetic_checkpoint, cfg))
     recorded_model_name = model_name.split(".")[0]
-    torch.save(model.state_dict(), f"{MODEL_DIR}tf_lens_{recorded_model_name}.pth")
+    torch.save(model.state_dict(), f"{MODEL_DIR}/tf_lens_models/tf_lens_{recorded_model_name}.pth")
 
 # An example input
 sample_input = torch.tensor([[15, 6, 4, 27, 9, 0, 25, 10, 0, 7, 4, 19]]).to(device)

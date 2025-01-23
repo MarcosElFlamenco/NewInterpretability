@@ -31,8 +31,6 @@ def plot_accuracy_by_iterations(
     # --- 0) Normalize optional lists to sets for quick membership checks
     if max_train_games_list is not None:
         max_train_games_list = set(str(x) for x in max_train_games_list)
-    if num_epochs_list is not None:
-        num_epochs_list = set(str(x) for x in num_epochs_list)
     if probe_datasets is not None:
         probe_datasets = set(probe_datasets)
     if training_configs is not None:
@@ -53,22 +51,18 @@ def plot_accuracy_by_iterations(
         # skip if doesn't start with any of the chosen model_prefixes
         if not any(row["model_name"].startswith(pref) for pref in model_prefixes):
             continue
-        
         # check max_train_games
         if max_train_games_list is not None:
             if str(row["max_train_games"]) not in max_train_games_list:
                 continue
-        
         # check num_epochs
         if num_epochs_list is not None:
-            if str(row["num_epochs"]) not in num_epochs_list:
+            if int(row["num_epochs"]) not in num_epochs_list:
                 continue
-        
         # check probe_dataset
         if probe_datasets is not None:
             if row["probe_dataset"] not in probe_datasets:
                 continue
-        
         # check training_config
         if training_configs is not None:
             if row["training_config"] not in training_configs:
@@ -85,6 +79,7 @@ def plot_accuracy_by_iterations(
     # --- 3) Group data by model_prefix for plotting lines in different colors
     #     Then within each group, we'll split by selection_arg to vary markers
     grouped_by_prefix = {}
+    print(f"length of filtered {len(filtered_data)}")
     for row in filtered_data:
         # find which prefix (from the user-specified list) actually matches
         prefix_match = None

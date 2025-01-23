@@ -16,8 +16,14 @@ import pickle
 import einops
 import numpy
 import os
+import warnings
 
-MODEL_DIR = "models/"
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+
+
+MODEL_DIR = "../models/"
 D_MODEL = 512
 N_HEADS = 8
 WANDB_PROJECT = "chess_linear_probes"
@@ -41,7 +47,7 @@ if not logger.handlers:
 with open(f"{MODEL_DIR}meta.pkl", "rb") as f:
     meta = pickle.load(f)
 
-logger.info(meta)
+#logger.info(meta)
 
 DEVICE = (
     "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -54,8 +60,8 @@ encode = lambda s: [stoi[c] for c in s]
 decode = lambda l: "".join([itos[i] for i in l])
 
 meta_round_trip_input = "1.e4 e6 2.Nf3"
-logger.info(encode(meta_round_trip_input))
-logger.info("Performing round trip test on meta")
+#logger.info(encode(meta_round_trip_input))
+#logger.info("Performing round trip test on meta")
 assert decode(encode(meta_round_trip_input)) == meta_round_trip_input
 
 
@@ -113,6 +119,9 @@ class SingleProbeCast:
         default_factory=lambda: collections.deque(maxlen=1000)
     )
 
+    def __str__(self):
+        f"Single probe cast: first tensor: {linear_DN.shape} second tensor: {linear_MNRRC.shape} \n name: {probe_name}"
+
     def forward_pass(self,resid_post_BLD):
         intermediate_BLN = einsum(
             "batch pos d_model, d_model rank -> batch pos rank",
@@ -156,7 +165,6 @@ def init_logging_dict(
         wandb_run_name += "_levels"
         for level in config.levels_of_interest:
             wandb_run_name += f"_{level}"
-    print(f'when starting logging dic, train params has the following info {train_params.num_epochs}')
     logging_dict = {
         "linear_probe_name": config.linear_probe_name,
         "layer": layer,
@@ -228,6 +236,7 @@ def process_dataframe(
         # Filter the DataFrame based on these matches
         cn = config.column_name
         column = df[cn]
+        print(f"column {column}")
         df = df[column.isin(matches)]
         logger.info(f"Number of games in filtered dataset: {len(df)}")
 
@@ -254,14 +263,14 @@ def get_othello_seqs_string(df: pd.DataFrame) -> list[str]:
     return board_seqs_string_Bl
 
 def get_board_seqs_string(df: pd.DataFrame) -> list[str]:
-
+    print(f'dataframe {df}')
     if "tokens" in df.columns:
         return get_othello_seqs_string(df)
 
     key = "transcript"
     lines = df[key]
     print(f"lines: {lines}")
-    row_length = len(df[key].iloc[0])
+    row_length = len(lines.iloc[0])
 
     assert all(
         df[key].apply(lambda x: len(x) == row_length)
@@ -278,7 +287,6 @@ def get_othello_seqs_int(df: pd.DataFrame) -> Int[Tensor, "num_games pgn_str_len
     tokens_list = df["tokens"].tolist()
     tokens_tensor_Bl = torch.tensor(tokens_list)
     tokens_tensor_Bl = tokens_tensor_Bl[:, :OTHELLO_SEQ_LEN]  # OthelloGPT has context length of 59
-    logger.info(f"tokens_tensor shape: {tokens_tensor_Bl.shape}")
     return tokens_tensor_Bl
 
 
@@ -288,9 +296,9 @@ def get_board_seqs_int(df: pd.DataFrame) -> Int[Tensor, "num_games pgn_str_lengt
         return get_othello_seqs_int(df)
 
     encoded_df = df["transcript"].apply(encode)
-    logger.info(encoded_df.head())
+    #logger.info(encoded_df.head())
     board_seqs_int_Bl = torch.tensor(encoded_df.apply(list).tolist())
-    logger.info(f"board_seqs_int shape: {board_seqs_int_Bl.shape}")
+    #logger.info(f"board_seqs_int shape: {board_seqs_int_Bl.shape}")
     return board_seqs_int_Bl
 
 
@@ -299,8 +307,8 @@ def get_skill_stack(config: Config, df: pd.DataFrame) -> Int[Tensor, "num_games"
     skill_levels_list = df[config.column_name].tolist()
 
     skill_stack_B = torch.tensor(skill_levels_list)
-    logger.info(f"Unique values in skill_stack: {skill_stack_B.unique()}")
-    logger.info(f"skill_stack shape: {skill_stack_B.shape}")
+    #logger.info(f"Unique values in skill_stack: {skill_stack_B.unique()}")
+    #logger.info(f"skill_stack shape: {skill_stack_B.shape}")
     return skill_stack_B
 
 
@@ -491,17 +499,14 @@ def populate_probes_dict(
         logging_dict = init_logging_dict(
             layer, config, split, dataset_prefix, model_name, n_layers, train_params, probe_type
         )
-        print(f"logging dict has the following info {logging_dict["num_epochs"]}")
 
         linear_probe_name = (
             f"{PROBE_DIR}{model_name}_{args.training_config}_{args.probe_dataset}_{args.max_train_games}_{config.linear_probe_name}.pth"
         )
-        print(f"This probe will be named {linear_probe_name}")
         if os.path.exists(linear_probe_name):
-            print("Found checkpoint with this name, recovering checkpoint and resuming training")
+            print(f"Found checkpoint named {linear_probe_name}, recovering checkpoint and resuming training")
             probes[layer] = load_probe_from_checkpoint(linear_probe_name,config,train_params,logging_dict)
         elif probe_type == 'vanilla':
-            print(f"Found {probe_type} probe type, initialising vanilla probe")
             linear_probe_MDRRC = torch.randn(
                 train_params.modes,
                 D_MODEL,
@@ -512,7 +517,7 @@ def populate_probes_dict(
                 device=DEVICE,
             ) / torch.sqrt(torch.tensor(D_MODEL))
             linear_probe_MDRRC.requires_grad = True
-            logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
+            #logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
 
             optimiser = torch.optim.AdamW(
                 [linear_probe_MDRRC],

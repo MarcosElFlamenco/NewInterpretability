@@ -9,7 +9,7 @@ S3_PROBES := tf_lens_$(DATATYPE)_8layers_ckpt_no_optimizer_chess_piece_probe_lay
 
 
 ##PROBING SETTINGS
-RANDOM_MODEL_NAME := big_random16M_vocab32_50K
+RANDOM_MODEL_NAME := random_karvhypNS_50K
 LICHESS_MODEL_NAME := tf_lens_lichess9gb_vocab32_175K
 OLD_MODEL_NAME := tf_lens_random_8layers_ckpt_no_optimizer_Bonus
 MODEL1 := tf_lens_random_8layers_ckpt_no_optimizer.pth
@@ -24,7 +24,7 @@ train_probe:
 	$(PYTHON) $(TEST) \
 		--mode train \
 		--probe piece \
-		--probe_dataset $(PROBE_DATASET) \
+		--probe_dataset lichess \
 		--model_name $(RANDOM_MODEL_NAME) \
 		--training_config $(TRAINING_CONFIG) \
 		--max_iters $(MAX_ITERS) \
@@ -35,12 +35,11 @@ happy_train_probe:
 	python train_test_chess.py \
 		--mode train \
 		--probe piece \
-		--probe_dataset random \
+		--probe_dataset lichess \
 		--model_name lichess_karvhyp_500K \
-		--training_config classic \
-		--max_iters 20000 \
-		--max_train_games 5000 \
-		--num_epochs 3 \
+		--training_config cast1 \
+		--max_train_games 10000 \
+		--num_epochs 2 \
 
 
 test_probe: $(TEST)
@@ -61,26 +60,35 @@ test_control_probe:
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
 
-PROBE_DATASET := lichess
+PROBE_DATASET := random 
 PROBE_CONTROL_DATASET := dummy
 TEST_GAMES_DATASET := random
-TRAINING_CONFIG := cast64
+TRAINING_CONFIG := classic
 MAX_ITERS := 20000
 MAX_TRAIN_GAMES := 10000
-NUM_EPOCHS := 1
+NUM_EPOCHS := 3
 
 
 ##todo fix test option
 ##todo, allow training to start up from probe checkpoint 
-run_probe_experiments:
+run_probe_experiments_night:
 	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K \
-		--probe_datasets random \
+		--models lichess_karvhyp_150K lichess_karvhyp_250K lichess_karvhyp_350K lichess_karvhyp_450K lichess_karvhyp_550K randomkarvhypNS_50K randomkarvhypNS_150K randomkarvhypNS_100K randomkarvhypNS_200K \
+		--probe_datasets $(PROBE_DATASET) \
 		--training_configs $(TRAINING_CONFIG) \
 		--test_games_datasets lichess \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
-		--verbose
+
+run_probe_experiments_now:
+	$(PYTHON) run_experiments.py \
+		--models random_karvhypNS_50K \
+		--probe_datasets $(PROBE_DATASET) \
+		--training_configs $(TRAINING_CONFIG) \
+		--test_games_datasets lichess \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs $(NUM_EPOCHS) \
+
 
 remote_train_probe:
 	sky jobs launch -c boardCluster remote/train_probes.yaml
