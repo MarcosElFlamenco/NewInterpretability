@@ -234,7 +234,7 @@ def build_checkpoint_filename(model_name, training_config,probe_dataset,max_trai
     Adjust as needed for your naming convention. For now, let's do something literal:
     """
     tf_lens_model_name = TRANSFORMER_LENS_PREFIX + model_name
-    linear_probe_name = f"{tf_lens_model_name}_{training_config}_{probe_dataset}_{max_train_games}_chess_piece_probe.pth"
+    linear_probe_name = f"{model_name}_{training_config}_{probe_dataset}_{max_train_games}_chess_piece_probe.pth"
  
     return os.path.join(LINEAR_PROBE_FOLDER, linear_probe_name)
 
@@ -306,6 +306,8 @@ def main():
             # 4) Load the resulting checkpoint to get accuracy
 
             checkpoint_path = build_checkpoint_filename(model_name, training_config,probe_dataset,args.max_train_games)
+            if args.verbose:
+                print(f'Checkpoint should be at {checkpoint_path}')
             if os.path.isfile(checkpoint_path):
                 ckpt = torch.load(checkpoint_path, map_location="cpu")
                 # Suppose there's an "accuracy" key in the checkpoint
@@ -347,8 +349,7 @@ def main():
                     if args.verbose:
                         print("[WARNING] 'accuracy' key not found in checkpoint. Skipping logging.")
             else:
-                if args.verbose:
-                    print(f"[ERROR] Checkpoint file not found: {checkpoint_path}")
+                print(f"[ERROR] Checkpoint file not found: {checkpoint_path}")
 
     # Save the tracking data
     #save_experiment_tracking(experiment_tracking)

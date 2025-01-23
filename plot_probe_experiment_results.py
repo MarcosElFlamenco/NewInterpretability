@@ -9,7 +9,8 @@ def plot_accuracy_by_iterations(
     num_epochs_list=None,
     probe_datasets=None,
     training_configs=None,
-    selection_arg="probe_dataset"
+    selection_arg="probe_dataset",
+    debugging=False
 ):
     """
     Plots accuracy vs. iterations, filtered by the given criteria.
@@ -48,22 +49,32 @@ def plot_accuracy_by_iterations(
     # --- 2) Filter the data
     filtered_data = []
     for row in data:
+        if debugging:
+            print(f"model {row}")
         # skip if doesn't start with any of the chosen model_prefixes
         if not any(row["model_name"].startswith(pref) for pref in model_prefixes):
             continue
+        if debugging:
+            print(1)
         # check max_train_games
         if max_train_games_list is not None:
             if str(row["max_train_games"]) not in max_train_games_list:
                 continue
-        # check num_epochs
+        if debugging:
+            print(2)
+         # check num_epochs
         if num_epochs_list is not None:
             if int(row["num_epochs"]) not in num_epochs_list:
                 continue
+        if debugging:
+            print(3)
         # check probe_dataset
         if probe_datasets is not None:
             if row["probe_dataset"] not in probe_datasets:
                 continue
         # check training_config
+        if debugging:
+            print(4)
         if training_configs is not None:
             if row["training_config"] not in training_configs:
                 continue

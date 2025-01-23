@@ -269,7 +269,6 @@ def get_board_seqs_string(df: pd.DataFrame) -> list[str]:
 
     key = "transcript"
     lines = df[key]
-    print(f"lines: {lines}")
     row_length = len(lines.iloc[0])
 
     assert all(
