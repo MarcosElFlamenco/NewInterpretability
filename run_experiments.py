@@ -15,8 +15,11 @@ import os
 import subprocess
 import itertools
 import json
+import pickle
 import torch
 import warnings
+import train_test_chess as ttc
+import statistics
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -193,7 +196,7 @@ def run_train_probe(model_name, probe_dataset, training_config, max_train_games,
     subprocess.run(cmd, check=True)
 
 
-def run_test_probe(model_name, probe_dataset, test_games_dataset, training_config, verbose=False):
+def run_test_probe(model_name, probe_dataset, test_games_dataset, training_config, max_train_games,verbose=False):
     """
     Runs the test command for a given (model, probe_dataset, test_games_dataset, training_config).
     We always test with:
@@ -204,23 +207,26 @@ def run_test_probe(model_name, probe_dataset, test_games_dataset, training_confi
       --test_games_dataset test_games_dataset
     """
     tf_model_name = TRANSFORMER_LENS_PREFIX + model_name
-
+    if verbose:
+        print(f"probe dataset {probe_dataset}")
+        print(f"model name {model_name}")
+        print(f"training config {training_config}")
     cmd = [
         "python",
-        "test.py",
+        "train_test_chess.py",
         "--mode", "test",
         "--probe", "piece",
         "--probe_dataset", probe_dataset,
-        "--model_name", tf_model_name,
+        "--model_name", model_name,
+        "--training_config", training_config,
+        "--max_train_games", max_train_games,
         "--test_games_dataset", test_games_dataset
     ]
     if verbose:
         print(f"[INFO] Testing probe for model={model_name}, dataset={probe_dataset}, test_games_dataset={test_games_dataset}, config={training_config}")
         print(f"[CMD] {' '.join(cmd)}")
     
-    result = subprocess.run(cmd, capture_output=True, check=True)
-    print("---------------------------------DIOWN============================")
-    print(result)
+    subprocess.run(cmd, check=True)
 
 
 def build_checkpoint_filename(model_name, training_config,probe_dataset,max_train_games):
@@ -233,7 +239,6 @@ def build_checkpoint_filename(model_name, training_config,probe_dataset,max_trai
     
     Adjust as needed for your naming convention. For now, let's do something literal:
     """
-    tf_lens_model_name = TRANSFORMER_LENS_PREFIX + model_name
     linear_probe_name = f"{model_name}_{training_config}_{probe_dataset}_{max_train_games}_chess_piece_probe.pth"
  
     return os.path.join(LINEAR_PROBE_FOLDER, linear_probe_name)
@@ -267,6 +272,8 @@ def main():
         for d in experiment_tracking
         if "accuracy" in d  # or any condition you want
     ]
+    if args.verbose:
+        print(f"completed set: {completed_set}")
 
     # Generate all combinations to run
     combos = itertools.product(
@@ -359,17 +366,44 @@ def main():
         # We run test for all combinations of model x probe_dataset x training_config x test_games_dataset
         test_combos = itertools.product(
             args.models,
-            args.probe_datasets,
             args.training_configs,
+            args.probe_datasets,
             args.test_games_datasets
         )
-        for model_name, probe_dataset, training_config, test_dataset in test_combos:
+        print(f"test_combos {test_combos}")
+        for model_name, training_config, probe_dataset, test_dataset in test_combos:
             if args.verbose:
                 print("\n----------------------------------------------------")
-                print(f"[TEST] model={model_name}, probe_dataset={probe_dataset}, config={training_config}, test_dataset={test_dataset}")
+                print(f"[TEST] model={model_name}, config={training_config}, probe_dataset={probe_dataset}, max_train_games={args.max_train_games}, test_dataset={test_dataset}")
                 print("----------------------------------------------------\n")
+            print(model_name, training_config, probe_dataset, args.max_train_games)
+            assert((model_name, training_config, probe_dataset, args.max_train_games) in completed_set)
+            experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
+            
+            probe_name = f"{model_name}_{training_config}_{probe_dataset}_{args.max_train_games}_chess_piece_probe"
+            output_location = f"linear_probes/test_data/{probe_name}_{test_dataset}.pkl"
+            if os.path.exists(output_location):
+                print(f"Testing seems to have been run, getting results from {output_location}")
+            else:
+                run_test_probe(model_name, probe_dataset, test_dataset, training_config, args.max_train_games,verbose=args.verbose)
+            with open(output_location, "rb") as f:
+                results = pickle.load(f)
+            accuracy_list = results["accuracy"]
+            accuracy = statistics.mean(accuracy_list)
+            test_data = {
+                f"{test_dataset}": accuracy
+            }
+            with open(TRACKING_FILE, "r", encoding="utf-8") as f:
+                experiment_tracking = json.load(f)
 
-            run_test_probe(model_name, probe_dataset, test_dataset, training_config, verbose=args.verbose)
+            test_results = experiment_tracking[experiment_index].get("test_results",{})
+            if args.verbose:
+                print(f"found the following test results {test_results}")
+            test_results[test_dataset] = accuracy
+            experiment_tracking[experiment_index]["test_results"] = test_results
+            with open(TRACKING_FILE, "w", encoding="utf-8") as f:
+                json.dump(experiment_tracking,f,indent=2)
+
 
     elif args.test and len(args.test_games_datasets) == 0:
         print("[WARNING] --test was set but no --test_games_datasets provided. Nothing to test.")

@@ -376,6 +376,7 @@ def test_linear_probe_cross_entropy(
     config: Config,
     logging_dict: dict,
     train_params: TrainingParams,
+    test_games_dataset: str,
 ) -> float:
     """Takes a linear probe and tests it on the test set, contained in probe_data. Saves the results to a pickle file.
     Returns a float representing the average accuracy of the probe on the test set. This is also used as an end to end test for the function.
@@ -401,6 +402,7 @@ def test_linear_probe_cross_entropy(
             probe_name="dummy_probe",
             optimiser=None,  # Not needed for inference
             logging_dict={},
+            epoch=0,
             loss=torch.tensor(0.0),
             accuracy=torch.tensor(0.0),
             accuracy_queue=deque(maxlen=1000),
@@ -414,6 +416,7 @@ def test_linear_probe_cross_entropy(
             probe_name="dummy_probe",
             optimiser=None,  # Not needed for inference
             logging_dict={},
+            epoch=0,
             loss=torch.tensor(0.0),
             accuracy=torch.tensor(0.0),
             accuracy_queue=deque(maxlen=1000),
@@ -431,7 +434,6 @@ def test_linear_probe_cross_entropy(
     accuracy_list = []
     loss_list = []
     full_test_indices = torch.arange(0, num_games)
-    num_games = BATCH_SIZE
     for i in tqdm(range(0, num_games, BATCH_SIZE)):
         indices_B = full_test_indices[i : i + BATCH_SIZE]  # shape batch_size
 
@@ -462,7 +464,7 @@ def test_linear_probe_cross_entropy(
     }
 
     output_probe_data_name = linear_probe_name.split("/")[-1].split(".")[0]
-    output_location = f"{PROBE_DIR}test_data/{output_probe_data_name}.pkl"
+    output_location = f"{PROBE_DIR}test_data/{output_probe_data_name}_{test_games_dataset}.pkl"
 
     logger.info(f"Saving test data to {output_location}")
     average_accuracy = sum(accuracy_list) / len(accuracy_list)
@@ -594,7 +596,7 @@ if __name__ == "__main__":
                 "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"
             ]
 
-        print(saved_probes)
+        print(f"Running tests on the following probes {saved_probes}")
 
         # NOTE: This is very inefficient. The expensive part is forwarding the GPT, which we should only have to do once.
         # With little effort, we could test probes on all layers at once. This would be much faster.
@@ -642,7 +644,7 @@ if __name__ == "__main__":
                 )
 
                 avg_accuracy = test_linear_probe_cross_entropy(
-                    probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS
+                    probe_file_location, probe_data, config, logging_dict, TRAIN_PARAMS, args.test_games_dataset
                 )
 
     elif args.mode == "train":
