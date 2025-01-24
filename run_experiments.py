@@ -288,77 +288,79 @@ def main():
         print("\n----------------------------------------------------")
         print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}, max_train_games={args.max_train_games}")
         print("----------------------------------------------------\n")
+        try:
+            # 1) Check if the transformer lens model exists
+            if not model_exists_as_transformer_lens(model_name_pth):
+                create_transformer_lens_model(model_name_pth, verbose=args.verbose)
 
-        # 1) Check if the transformer lens model exists
-        if not model_exists_as_transformer_lens(model_name_pth):
-            create_transformer_lens_model(model_name_pth, verbose=args.verbose)
-
-        # 2) Check if this combination is already done or started
-        keepTraining = True
-        experiment = None
-        if (model_name, training_config, probe_dataset, args.max_train_games) in completed_set:
-            required_epochs = args.num_epochs
-            experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
-            experiment = experiment_tracking[experiment_index]
-            trained_epochs = experiment["num_epochs"]
-            print(f"from tracking file num epochs is {trained_epochs}")
-            if trained_epochs >= required_epochs:
-                print("This combination has already been trained with at least this many epochs")
-                keepTraining = False
-            else:
-                print("A few epochs of this combination have been trained, recovering checkpoint and finishing training")
-        if keepTraining:
-            # 3) Train the probe
-            run_train_probe(model_name, probe_dataset, training_config, args.max_train_games, args.num_epochs,verbose=args.verbose)
-            # 4) Load the resulting checkpoint to get accuracy
-
-            checkpoint_path = build_checkpoint_filename(model_name, training_config,probe_dataset,args.max_train_games)
-            if args.verbose:
-                print(f'Checkpoint should be at {checkpoint_path}')
-            if os.path.isfile(checkpoint_path):
-                ckpt = torch.load(checkpoint_path, map_location="cpu")
-                # Suppose there's an "accuracy" key in the checkpoint
-
-                accuracy = ckpt.get("accuracy", None).item()
-                
-                if accuracy is not None:
-                    if args.verbose:
-                        print(f"[INFO] Loaded checkpoint. Accuracy = {accuracy}")
-                    # Store the result in our tracking list
-#                    print(f"model name {experiment["model_name"]} training config {experiment["training_config"]}, probe dataset {experiment["probe_dataset"]}, max_games {experiment["max_train_games"]}")
-
-                    #assert experiment["model_name"] == model_name
-                    #assert experiment["training_config"] == training_config
-                    #assert experiment["probe_dataset"] == probe_dataset
-                    #assert experiment["max_train_games"] == args.max_train_games
-                    previous_accuracies = []
-                    if experiment:
-                        previous_accuracies = experiment["accuracy_list"]
-                        experiment_tracking.remove(experiment)
- 
-                    experiment_tracked = {
-                        "model_name": model_name,
-                        "training_config": training_config,
-                        "probe_dataset": probe_dataset,
-                        "max_train_games": args.max_train_games,
-                        "num_epochs": args.num_epochs,
-                        "accuracy_list": previous_accuracies + list(ckpt["accuracy_queue"]),
-                        "accuracy": accuracy,
-                    }
-                    experiment_tracking.append(experiment_tracked)
-
-                    with open(TRACKING_FILE, "w", encoding="utf-8") as f:
-                        json.dump(experiment_tracking, f, indent=2)
-
-                    print(f"Saved {checkpoint_path} probe to {TRACKING_FILE}")
-
+            # 2) Check if this combination is already done or started
+            keepTraining = True
+            experiment = None
+            if (model_name, training_config, probe_dataset, args.max_train_games) in completed_set:
+                required_epochs = args.num_epochs
+                experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
+                experiment = experiment_tracking[experiment_index]
+                trained_epochs = experiment["num_epochs"]
+                print(f"from tracking file num epochs is {trained_epochs}")
+                if trained_epochs >= required_epochs:
+                    print("This combination has already been trained with at least this many epochs")
+                    keepTraining = False
                 else:
-                    if args.verbose:
-                        print("[WARNING] 'accuracy' key not found in checkpoint. Skipping logging.")
-            else:
-                print(f"[ERROR] Checkpoint file not found: {checkpoint_path}")
+                    print("A few epochs of this combination have been trained, recovering checkpoint and finishing training")
+            if keepTraining:
+                # 3) Train the probe
+                run_train_probe(model_name, probe_dataset, training_config, args.max_train_games, args.num_epochs,verbose=args.verbose)
+                # 4) Load the resulting checkpoint to get accuracy
 
-    # Save the tracking data
+                checkpoint_path = build_checkpoint_filename(model_name, training_config,probe_dataset,args.max_train_games)
+                if args.verbose:
+                    print(f'Checkpoint should be at {checkpoint_path}')
+                if os.path.isfile(checkpoint_path):
+                    ckpt = torch.load(checkpoint_path, map_location="cpu")
+                    # Suppose there's an "accuracy" key in the checkpoint
+
+                    accuracy = ckpt.get("accuracy", None).item()
+                    
+                    if accuracy is not None:
+                        if args.verbose:
+                            print(f"[INFO] Loaded checkpoint. Accuracy = {accuracy}")
+                        # Store the result in our tracking list
+    #                    print(f"model name {experiment["model_name"]} training config {experiment["training_config"]}, probe dataset {experiment["probe_dataset"]}, max_games {experiment["max_train_games"]}")
+
+                        #assert experiment["model_name"] == model_name
+                        #assert experiment["training_config"] == training_config
+                        #assert experiment["probe_dataset"] == probe_dataset
+                        #assert experiment["max_train_games"] == args.max_train_games
+                        previous_accuracies = []
+                        if experiment:
+                            previous_accuracies = experiment["accuracy_list"]
+                            experiment_tracking.remove(experiment)
+    
+                        experiment_tracked = {
+                            "model_name": model_name,
+                            "training_config": training_config,
+                            "probe_dataset": probe_dataset,
+                            "max_train_games": args.max_train_games,
+                            "num_epochs": args.num_epochs,
+                            "accuracy_list": previous_accuracies + list(ckpt["accuracy_queue"]),
+                            "accuracy": accuracy,
+                        }
+                        experiment_tracking.append(experiment_tracked)
+
+                        with open(TRACKING_FILE, "w", encoding="utf-8") as f:
+                            json.dump(experiment_tracking, f, indent=2)
+
+                        print(f"Saved {checkpoint_path} probe to {TRACKING_FILE}")
+
+                    else:
+                        if args.verbose:
+                            print("[WARNING] 'accuracy' key not found in checkpoint. Skipping logging.")
+                else:
+                    print(f"[ERROR] Checkpoint file not found: {checkpoint_path}")
+        except Exception as e:
+            print(f"this combo failed, returning the following error: {e}")
+
+        # Save the tracking data
     #save_experiment_tracking(experiment_tracking)
 
     # TEST SECTION (if --test is provided)
@@ -376,33 +378,35 @@ def main():
                 print("\n----------------------------------------------------")
                 print(f"[TEST] model={model_name}, config={training_config}, probe_dataset={probe_dataset}, max_train_games={args.max_train_games}, test_dataset={test_dataset}")
                 print("----------------------------------------------------\n")
-            print(model_name, training_config, probe_dataset, args.max_train_games)
-            assert((model_name, training_config, probe_dataset, args.max_train_games) in completed_set)
-            experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
-            
-            probe_name = f"{model_name}_{training_config}_{probe_dataset}_{args.max_train_games}_chess_piece_probe"
-            output_location = f"linear_probes/test_data/{probe_name}_{test_dataset}.pkl"
-            if os.path.exists(output_location):
-                print(f"Testing seems to have been run, getting results from {output_location}")
-            else:
-                run_test_probe(model_name, probe_dataset, test_dataset, training_config, args.max_train_games,verbose=args.verbose)
-            with open(output_location, "rb") as f:
-                results = pickle.load(f)
-            accuracy_list = results["accuracy"]
-            accuracy = statistics.mean(accuracy_list)
-            test_data = {
-                f"{test_dataset}": accuracy
-            }
-            with open(TRACKING_FILE, "r", encoding="utf-8") as f:
-                experiment_tracking = json.load(f)
+            try:
+                assert((model_name, training_config, probe_dataset, args.max_train_games) in completed_set)
+                experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
+                
+                probe_name = f"{model_name}_{training_config}_{probe_dataset}_{args.max_train_games}_chess_piece_probe"
+                output_location = f"linear_probes/test_data/{probe_name}_{test_dataset}.pkl"
+                if os.path.exists(output_location):
+                    print(f"Testing seems to have been run, getting results from {output_location}")
+                else:
+                    run_test_probe(model_name, probe_dataset, test_dataset, training_config, args.max_train_games,verbose=args.verbose)
+                with open(output_location, "rb") as f:
+                    results = pickle.load(f)
+                accuracy_list = results["accuracy"]
+                accuracy = statistics.mean(accuracy_list)
+                test_data = {
+                    f"{test_dataset}": accuracy
+                }
+                with open(TRACKING_FILE, "r", encoding="utf-8") as f:
+                    experiment_tracking = json.load(f)
 
-            test_results = experiment_tracking[experiment_index].get("test_results",{})
-            if args.verbose:
-                print(f"found the following test results {test_results}")
-            test_results[test_dataset] = accuracy
-            experiment_tracking[experiment_index]["test_results"] = test_results
-            with open(TRACKING_FILE, "w", encoding="utf-8") as f:
-                json.dump(experiment_tracking,f,indent=2)
+                test_results = experiment_tracking[experiment_index].get("test_results",{})
+                if args.verbose:
+                    print(f"found the following test results {test_results}")
+                test_results[test_dataset] = accuracy
+                experiment_tracking[experiment_index]["test_results"] = test_results
+                with open(TRACKING_FILE, "w", encoding="utf-8") as f:
+                    json.dump(experiment_tracking,f,indent=2)
+            except Exception as e:
+                print(f"This test failed and returned the following exception: {e}")
 
 
     elif args.test and len(args.test_games_datasets) == 0:

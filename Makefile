@@ -54,12 +54,8 @@ test_control_probe:
 		--probe_dataset $(PROBE_CONTROL_DATASET) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
-ALL_RANDOM_MODELS := random_karvhyp_450K random_karvhyp_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K 
+ALL_RANDOM_MODELS := random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K 
 ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K lichess_karvhyp_550K lichess_karvhyp_450K lichess_karvhyp_350K lichess_karvhyp_250K lichess_karvhyp_150K lichess_karvhyp_50K
-
-
-
-
 
 
 
@@ -82,6 +78,7 @@ run_probe_experiments_nightime:
 		--num_epochs 3 \
 		--verbose \
 		--test
+
 
 
 setup: $(SETUP)
