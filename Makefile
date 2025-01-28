@@ -10,7 +10,7 @@ MODEL := tf_lens_random_8layers_ckpt_no_optimizer.pth
 PROBE_DATASET := lichess 
 TEST_GAMES_DATASET := random
 
-TRAINING_CONFIG := classic
+TRAINING_CONFIG := cast32 
 MAX_TRAIN_GAMES := 10000
 NUM_EPOCHS := 3
 
@@ -29,21 +29,19 @@ train_probe:
 	$(PYTHON) $(TEST) \
 		--mode train \
 		--probe piece \
-		--probe_dataset random \
-		--model_name $(LICHESS_MODEL_NAME) \
-		--training_config $(TRAINING_CONFIG) \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs $(NUM_EPOCHS)
+		    --num_epochs 1
+		
+		
 
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
 		--probe piece \
-		--probe_dataset random \
-		--model_name lichess_karvhyp_600K \
-		--training_config classic \
+		--probe_dataset lichess \
+		--model_name lichess_karvhyp_300K \
+		--training_config cast32 \
 		--max_train_games $(MAX_TRAIN_GAMES) \
-		--test_games_dataset lichess \
+		--test_games_dataset random \
 		--verbose
 
 test_control_probe:
@@ -54,9 +52,9 @@ test_control_probe:
 		--probe_dataset $(PROBE_CONTROL_DATASET) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
-ALL_RANDOM_MODELS := random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K 
-ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K lichess_karvhyp_550K lichess_karvhyp_450K lichess_karvhyp_350K lichess_karvhyp_250K lichess_karvhyp_150K lichess_karvhyp_50K
-
+ALL_RANDOMNS_MODELS := random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K 
+ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K lichess_karvhyp_550K lichess_karvhyp_450K lichess_karvhyp_350K lichess_karvhyp_250K lichess_karvhyp_150K lichess_karvhyp_50K lichess_karvhyp_0K
+ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K 
 
 
 run_probe_long:
@@ -68,18 +66,40 @@ run_probe_long:
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
 
-run_probe_experiments_nightime:
+train_lichess_cast32_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_LICHESS_MODELS) $(ALL_RANDOM_MODELS)\
-		--probe_datasets random lichess \
-		--training_configs $(TRAINING_CONFIG) \
+		--models $(ALL_LICHESS_MODELS) \
+		--probe_datasets lichess \
+		--training_configs cast32 \
 		--test_games_datasets lichess random \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--test
+
+test_all_classic_probes:
+	$(PYTHON) run_experiments.py \
+		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) \
+		--probe_datasets lichess \
+		--training_configs cast32 \
+		--test_games_datasets random lichess \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--verbose \
+		--test
+
+train_random_classic_probes:
+	$(PYTHON) run_experiments.py \
+		--models $(ALL_RANDOMNSNR_MODELS) \
+		--probe_datasets random lichess \
+		--training_configs classic \
+		--test_games_datasets random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--verbose \
 		--test
 
 
+night: run_probe_experiments_nightime1 run_probe_experiments_nightime2
 
 setup: $(SETUP)
 	$(PYTHON) $(SETUP) \
