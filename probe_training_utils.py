@@ -236,7 +236,6 @@ def process_dataframe(
         # Filter the DataFrame based on these matches
         cn = config.column_name
         column = df[cn]
-        print(f"column {column}")
         df = df[column.isin(matches)]
         logger.info(f"Number of games in filtered dataset: {len(df)}")
 
@@ -263,7 +262,6 @@ def get_othello_seqs_string(df: pd.DataFrame) -> list[str]:
     return board_seqs_string_Bl
 
 def get_board_seqs_string(df: pd.DataFrame) -> list[str]:
-    print(f'dataframe {df}')
     if "tokens" in df.columns:
         return get_othello_seqs_string(df)
 

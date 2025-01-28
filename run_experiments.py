@@ -344,6 +344,7 @@ def main():
                             "num_epochs": args.num_epochs,
                             "accuracy_list": previous_accuracies + list(ckpt["accuracy_queue"]),
                             "accuracy": accuracy,
+                            "test_results": {},
                         }
                         experiment_tracking.append(experiment_tracked)
 
@@ -372,7 +373,6 @@ def main():
             args.probe_datasets,
             args.test_games_datasets
         )
-        print(f"test_combos {test_combos}")
         for model_name, training_config, probe_dataset, test_dataset in test_combos:
             if args.verbose:
                 print("\n----------------------------------------------------")
@@ -408,6 +408,7 @@ def main():
             except Exception as e:
                 print(f"This test failed and returned the following exception: {e}")
 
+            print(model_name, training_config, probe_dataset, args.max_train_games)
 
     elif args.test and len(args.test_games_datasets) == 0:
         print("[WARNING] --test was set but no --test_games_datasets provided. Nothing to test.")

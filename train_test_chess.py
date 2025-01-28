@@ -281,13 +281,13 @@ def train_linear_probe_cross_entropy(
             "max_games": max_games,
             "num_epochs": train_params.num_epochs,
             "accuracy_queue": probes[layer].accuracy_queue,
-            "accuracy": probes[layer].accuracy
+            "accuracy": probes[layer].accuracy,
         }
         if isinstance(probes[layer],SingleProbe):
             checkpoint["linear_probe_MDRRC"] = probes[layer].linear_probe_MDRRC
         elif isinstance(probes[layer],SingleProbeCast):
-            checkpoint["linear_DN"] = probes[layer].linear_probe_DN
-            checkpoint["linear_MNRRC"] = probes[layer].linear_probe_MDRRC
+            checkpoint["linear_DN"] = probes[layer].linear_DN
+            checkpoint["linear_MNRRC"] = probes[layer].linear_MNRRC
 
 
         # Update the checkpoint dictionary with the contents of logging_dict
@@ -326,7 +326,6 @@ def construct_linear_probe_data(
     if verbose:
         print(f"user state dict one hot {user_state_dict_one_hot_mapping}")
     #this is none and probably shouldnt be
-    print(f"max games {max_games}")
     
     df = df[:max_games]
     board_seqs_string_Bl = get_board_seqs_string(df)
@@ -407,6 +406,8 @@ def test_linear_probe_cross_entropy(
             accuracy=torch.tensor(0.0),
             accuracy_queue=deque(maxlen=1000),
         )
+
+        logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
     elif config.probe_type == 'cast':
         linear_DN = checkpoint["linear_DN"]
         linear_MNRRC = checkpoint["linear_MNRRC"]
@@ -423,8 +424,6 @@ def test_linear_probe_cross_entropy(
         )
 
 
-    logger.info(f"linear_probe shape: {linear_probe_MDRRC.shape}")
-    logger.info(f"custom_indices shape: {probe_data.custom_indices.shape}")
 
 
 
@@ -596,8 +595,6 @@ if __name__ == "__main__":
                 "tf_lens_lichess_8layers_ckpt_no_optimizer_chess_skill_probe_layer_5.pth"
             ]
 
-        print(f"Running tests on the following probes {saved_probes}")
-
         # NOTE: This is very inefficient. The expensive part is forwarding the GPT, which we should only have to do once.
         # With little effort, we could test probes on all layers at once. This would be much faster.
         # But I can test the probes in 20 minutes and it was a one-off thing, so I didn't bother.
@@ -626,7 +623,7 @@ if __name__ == "__main__":
                 input_dataframe_file = f"{DATA_DIR}{args.test_games_dataset}_{split}.csv"
 
                 config = chess_utils.set_config_min_max_vals_and_column_name(
-                    config, input_dataframe_file, args.test_games_dataset 
+                    config, input_dataframe_file, args.test_games_dataset,args.verbose 
                 )
                 probe_data = construct_linear_probe_data(
                     input_dataframe_file,
@@ -665,7 +662,7 @@ if __name__ == "__main__":
 
         input_dataframe_file = f"{DATA_DIR}{args.probe_dataset}_{split}.csv"
         config = chess_utils.set_config_min_max_vals_and_column_name(
-            config, input_dataframe_file, args.probe_dataset 
+            config, input_dataframe_file, args.probe_dataset, args.verbose
         )
         config = chess_utils.update_config_using_player_color(
             player_color, config, indexing_function

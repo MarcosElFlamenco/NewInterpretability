@@ -740,7 +740,7 @@ cast32_piece_config = Config(
     min_val=-6,
     max_val=6,
     custom_board_state_function=board_to_piece_state,
-    linear_probe_name="cast32_chess_piece_probe",
+    linear_probe_name="chess_piece_probe",
     column_name='transcript',
     probe_type='cast',
     cast_rank=32
@@ -878,6 +878,7 @@ def set_config_min_max_vals_and_column_name(
     config: Config,
     input_dataframe_file: str,
     dataset_prefix: str,
+    verbose=False
 ) -> Config:
     if config.levels_of_interest is not None or config.probing_for_skill:
         if dataset_prefix == "stockfish_":
@@ -887,8 +888,9 @@ def set_config_min_max_vals_and_column_name(
     else:
         return config
     df = pd.read_csv(input_dataframe_file)
-    print(f"columns {df.columns}")
-    print(f"dataframe {df}")
+    if verbose:
+        print(f"columns {df.columns}")
+        print(f"dataframe {df}")
     config.min_val = df[config.column_name].min()
     config.max_val = df[config.column_name].max()
 
