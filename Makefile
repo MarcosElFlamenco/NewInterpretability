@@ -52,9 +52,9 @@ test_control_probe:
 		--probe_dataset $(PROBE_CONTROL_DATASET) \
 		--test_games_dataset $(TEST_GAMES_DATASET)
 
-ALL_RANDOMNS_MODELS := random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K 
+ALL_RANDOMNS_MODELS := random_karvhypNS_600K random_karvhypNS_550K random_karvhypNS_500K random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K random_karvhypNS_50K 
 ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K lichess_karvhyp_550K lichess_karvhyp_450K lichess_karvhyp_350K lichess_karvhyp_250K lichess_karvhyp_150K lichess_karvhyp_50K lichess_karvhyp_0K
-ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K 
+ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_600K random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K random_karvhypNSNR_50K 
 
 
 run_probe_long:
@@ -69,27 +69,40 @@ run_probe_long:
 train_lichess_cast32_probes:
 	$(PYTHON) run_experiments.py \
 		--models $(ALL_LICHESS_MODELS) \
-		--probe_datasets lichess \
+		--probe_datasets lichess random \
 		--training_configs cast32 \
 		--test_games_datasets lichess random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--test
 
+train_random_cast32_probes:
+	$(PYTHON) run_experiments.py \
+		--models $(ALL_RANDOMNSNR_MODELS) \
+		--probe_datasets lichess random \
+		--training_configs cast32 \
+		--test_games_datasets lichess random \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--test
+
+
 test_all_classic_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) \
+		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) $(ALL_RANDOMNS_MODELS) \
 		--probe_datasets lichess \
-		--training_configs cast32 \
+		--training_configs classic \
 		--test_games_datasets random lichess \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--verbose \
 		--test
 
-train_random_classic_probes:
+
+
+train_all_classic_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNSNR_MODELS) \
+		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) $(ALL_RANDOMNS_MODELS) \
 		--probe_datasets random lichess \
 		--training_configs classic \
 		--test_games_datasets random \

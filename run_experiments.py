@@ -206,7 +206,6 @@ def run_test_probe(model_name, probe_dataset, test_games_dataset, training_confi
       --model_name tf_lens_{model_name}
       --test_games_dataset test_games_dataset
     """
-    tf_model_name = TRANSFORMER_LENS_PREFIX + model_name
     if verbose:
         print(f"probe dataset {probe_dataset}")
         print(f"model name {model_name}")
@@ -225,8 +224,10 @@ def run_test_probe(model_name, probe_dataset, test_games_dataset, training_confi
     if verbose:
         print(f"[INFO] Testing probe for model={model_name}, dataset={probe_dataset}, test_games_dataset={test_games_dataset}, config={training_config}")
         print(f"[CMD] {' '.join(cmd)}")
-    
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except Exception as e:
+        raise Exception(f"When running command the following exception appeared {e}")
 
 
 def build_checkpoint_filename(model_name, training_config,probe_dataset,max_train_games):

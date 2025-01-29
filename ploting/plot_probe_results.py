@@ -73,7 +73,7 @@ def plot_accuracy_by_iterations(
     for row in data:
         model_name = row.get("model_name", "Unknown")
         if debugging >= 0:
-            print(f"Processing model: {model_name}")
+            print(f"Processing model: {model_name}, training_config {row.get("training_config","Unknown")}")
         
         # Filter by model_prefixes
         if not any(model_name.startswith(pref) for pref in model_prefixes):
@@ -239,7 +239,6 @@ def plot_accuracy_by_iterations(
     for prefix, probe_dataset, acc_type in product(model_prefixes, probe_datasets, accuracy_types):
         # Accessing the structure initializes it
         _ = all_info[prefix][probe_dataset][acc_type]
-
     for prefix, rows in grouped_by_prefix.items():
         # Sort rows by iterations
         sorted_rows = sorted(rows, key=lambda r: r["iterations"])
@@ -247,7 +246,6 @@ def plot_accuracy_by_iterations(
         for row in sorted_rows:
             iterations = row["iterations"]
             probe_dataset = row.get("probe_dataset", "Unknown")
-            
             for acc_type in accuracy_types:
                 # Determine accuracy value
                 if acc_type == "train":
@@ -300,7 +298,6 @@ def plot_accuracy_by_iterations(
                 if len(accuracy_types) > 1:
                     label_components.append(f"Accuracy={acc_type}")
                 label = ", ".join(label_components)
-
                 all_info[prefix][probe_dataset][acc_type]["iterations"].append(iterations)
                 all_info[prefix][probe_dataset][acc_type]["accuracies"].append(accuracy)
                 all_info[prefix][probe_dataset][acc_type]["color"] = color
