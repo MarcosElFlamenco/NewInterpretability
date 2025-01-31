@@ -353,7 +353,7 @@ def main():
                             json.dump(experiment_tracking, f, indent=2)
 
                         print(f"Saved {checkpoint_path} probe to {TRACKING_FILE}")
-
+                        completed_set.append((model_name,training_config,probe_dataset,args.max_train_games))
                     else:
                         if args.verbose:
                             print("[WARNING] 'accuracy' key not found in checkpoint. Skipping logging.")

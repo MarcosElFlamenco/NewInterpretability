@@ -746,6 +746,27 @@ cast32_piece_config = Config(
     cast_rank=32
 )
 
+cast16_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="chess_piece_probe",
+    column_name='transcript',
+    probe_type='cast',
+    cast_rank=16
+)
+
+cast8_piece_config = Config(
+    min_val=-6,
+    max_val=6,
+    custom_board_state_function=board_to_piece_state,
+    linear_probe_name="chess_piece_probe",
+    column_name='transcript',
+    probe_type='cast',
+    cast_rank=8
+)
+
+
 cast1_piece_config = Config(
     min_val=-6,
     max_val=6,

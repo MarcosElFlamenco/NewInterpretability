@@ -66,6 +66,38 @@ run_probe_long:
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs $(NUM_EPOCHS) \
 
+train_probes_bigrandom:
+	$(PYTHON) run_experiments.py \
+		--models big_random16M_vocab32_250K \
+		--probe_datasets lichess \
+		--training_configs classic \
+		--test_games_datasets random lichess \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--test
+
+train_cast16_probes:
+	$(PYTHON) run_experiments.py \
+		--models lichess_karvhyp_600K \
+		--probe_datasets random \
+		--training_configs cast16 \
+		--test_games_datasets random \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--test
+
+train_cast8_probes:
+	$(PYTHON) run_experiments.py \
+		--models lichess_karvhyp_600K \
+		--probe_datasets random \
+		--training_configs cast8 \
+		--test_games_datasets random \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3 \
+		--test
+
+
+
 train_lichess_cast32_probes:
 	$(PYTHON) run_experiments.py \
 		--models $(ALL_LICHESS_MODELS) \
@@ -79,12 +111,13 @@ train_lichess_cast32_probes:
 train_random_cast32_probes:
 	$(PYTHON) run_experiments.py \
 		--models $(ALL_RANDOMNSNR_MODELS) \
-		--probe_datasets lichess random \
+		--probe_datasets random \
 		--training_configs cast32 \
-		--test_games_datasets lichess random \
+		--test_games_datasets random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--test
+
 
 
 test_all_classic_probes:
@@ -105,7 +138,7 @@ train_all_classic_probes:
 		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) $(ALL_RANDOMNS_MODELS) \
 		--probe_datasets random lichess \
 		--training_configs classic \
-		--test_games_datasets random \
+		--test_games_datasets random lichess \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--verbose \

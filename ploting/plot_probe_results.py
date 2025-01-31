@@ -72,8 +72,9 @@ def plot_accuracy_by_iterations(
     filtered_data = []
     for row in data:
         model_name = row.get("model_name", "Unknown")
+        probe_dataset = row.get("probe_dataset", "Unknown")
         if debugging >= 0:
-            print(f"Processing model: {model_name}, training_config {row.get("training_config","Unknown")}")
+            print(f"Processing model: {model_name}, training_config {row.get("training_config","Unknown")}, probe dataset {probe_dataset}")
         
         # Filter by model_prefixes
         if not any(model_name.startswith(pref) for pref in model_prefixes):
@@ -96,12 +97,18 @@ def plot_accuracy_by_iterations(
                 continue
         
         # Filter by probe_datasets
-        if probe_datasets is not None:
-            if row.get("probe_dataset", "") not in probe_datasets:
-                if debugging >= 1:
-                    print(f"Skipping {model_name}: probe_dataset filter.")
-                continue
-        
+        if probe_datasets is not None: 
+            probe_dataset = row.get("probe_dataset","dataset")
+            model_training_set = row.get("model_name","prefix").split('_')[0]
+            if (probe_dataset not in probe_datasets):
+                if "training_set" in probe_datasets and probe_dataset == model_training_set:
+
+                    pass
+                else:
+                    if debugging >= 1:
+                        print(f"Skipping {model_name}: probe_dataset filter.")
+                    continue
+            
         # Filter by training_configs
         if training_configs is not None:
             if row.get("training_config", "") not in training_configs:
@@ -145,6 +152,7 @@ def plot_accuracy_by_iterations(
     
     if debugging >= 0:
         print(f"Filtered data points: {len(filtered_data)}")
+        print(f"Filtered data : {(filtered_data)}")
     
     # --- 3) Group data by model_prefix
     grouped_by_prefix = {}
@@ -152,7 +160,7 @@ def plot_accuracy_by_iterations(
         model_name = row["model_name"]
         prefix_match = None
         for pref in model_prefixes:
-            if model_name.startswith(pref):
+            if "_".join(model_name.split("_")[:-1]) == pref:
                 prefix_match = pref
                 break
         if prefix_match is None:
@@ -222,10 +230,10 @@ def plot_accuracy_by_iterations(
         return {
             "iterations": [],
             "accuracies": [],
-            "color": "",
-            "line_style": "",
-            "marker": "",
-            "label": ""
+            "color": "pink",
+            "line_style": ":",
+            "marker": "D",
+            "label": "default"
         }
 
     # Create a defaultdict for nested structure
@@ -239,20 +247,26 @@ def plot_accuracy_by_iterations(
     for prefix, probe_dataset, acc_type in product(model_prefixes, probe_datasets, accuracy_types):
         # Accessing the structure initializes it
         _ = all_info[prefix][probe_dataset][acc_type]
+
     for prefix, rows in grouped_by_prefix.items():
         # Sort rows by iterations
         sorted_rows = sorted(rows, key=lambda r: r["iterations"])
-        
+        if debugging >= -2:
+            print(f"In the case of {prefix} the sorted_rows {[row["model_name"] for row in sorted_rows]}")
         for row in sorted_rows:
             iterations = row["iterations"]
-            probe_dataset = row.get("probe_dataset", "Unknown")
+            model_training_set = row.get("model_name","prefix").split('_')[0]
+            if probe_dataset == "training_set":
+                row_probe_dataset = row.get(model_training_set, "Unknown")
+            else:
+                row_probe_dataset = row.get("probe_dataset", "Unknown")
             for acc_type in accuracy_types:
                 # Determine accuracy value
                 if acc_type == "train":
                     accuracy = row.get("accuracy", None)
                 elif acc_type == "training_set":
                     # Map to test_results based on probe_dataset
-                    accuracy = row["test_results"].get(probe_dataset, None)
+                    accuracy = row["test_results"].get(row_probe_dataset, None)
                 else:
                     accuracy = row["test_results"].get(acc_type, None)
                 
