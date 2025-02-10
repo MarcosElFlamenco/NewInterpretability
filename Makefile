@@ -57,78 +57,25 @@ ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_
 ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_600K random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K random_karvhypNSNR_50K 
 
 
-run_probe_long:
+
+train_all_cast8_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOM_MODELS)
-		--probe_datasets $(PROBE_DATASET) \
-		--training_configs $(TRAINING_CONFIG) \
-		--test_games_datasets lichess \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs $(NUM_EPOCHS) \
-
-train_probes_bigrandom:
-	$(PYTHON) run_experiments.py \
-		--models big_random16M_vocab32_250K \
-		--probe_datasets lichess \
-		--training_configs classic \
-		--test_games_datasets random lichess \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--test
-
-train_cast16_probes:
-	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_600K \
-		--probe_datasets random \
-		--training_configs cast16 \
-		--test_games_datasets random \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--test
-
-train_cast8_probes:
-	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_600K \
-		--probe_datasets random \
-		--training_configs cast8 \
-		--test_games_datasets random \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--test
-
-
-
-train_lichess_cast32_probes:
-	$(PYTHON) run_experiments.py \
-		--models $(ALL_LICHESS_MODELS) \
+		--models $(ALL_LICHESS_MODELS) $(ALL_BR_MODELS) $(ALL_RANDOMNS_MODELS) $(ALL_RANDOMNSNR_MODELS) \
 		--probe_datasets lichess random \
-		--training_configs cast32 \
+		--training_configs cast8 \
 		--test_games_datasets lichess random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--test
 
-train_random_cast32_probes:
+train_all_cast8_probes2:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNSNR_MODELS) \
-		--probe_datasets random \
-		--training_configs cast32 \
-		--test_games_datasets random \
+		--models $(ALL_RANDOMNS_MODELS) $(ALL_RANDOMNSNR_MODELS) \
+		--probe_datasets lichess random \
+		--training_configs cast8 \
+		--test_games_datasets lichess random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
-		--test
-
-
-
-test_all_classic_probes:
-	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) $(ALL_RANDOMNS_MODELS) \
-		--probe_datasets lichess \
-		--training_configs classic \
-		--test_games_datasets random lichess \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--verbose \
 		--test
 
 
@@ -145,16 +92,12 @@ train_all_classic_probes:
 		--test
 
 
-night: run_probe_experiments_nightime1 run_probe_experiments_nightime2
-
 setup: $(SETUP)
 	$(PYTHON) $(SETUP) \
 		--model_name $(RANDOM_MODEL_NAME)
 
 
-
-##remote
-
+#remote
 
 BUCKET := go-bucket-craft
 B1 := skypilot-workdir-oscar-3286bef5
