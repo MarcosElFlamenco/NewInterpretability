@@ -192,7 +192,7 @@ def train_linear_probe_cross_entropy(
 
     current_iter = 0
     ## note that probes is a single probe (it should be a list of size 1)
-    one_probe = probes[5]
+    one_probe = probes[layers[0]]
     #print(f"the probe that is being trained looks like this: {one_probe}")
     starting_epoch = one_probe.epoch
     print(f"val games {val_games}, train_games {train_games}, num games {num_games}")
@@ -678,7 +678,7 @@ if __name__ == "__main__":
         )
 
 #        layers = list(range(first_layer, last_layer + 1))
-        layers = [5]
+        layers = [6]
         probes = populate_probes_dict(
             layers,
             config,

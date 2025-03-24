@@ -498,7 +498,7 @@ def populate_probes_dict(
         )
 
         linear_probe_name = (
-            f"{PROBE_DIR}{model_name}_{args.training_config}_{args.probe_dataset}_{args.max_train_games}_{config.linear_probe_name}.pth"
+            f"{PROBE_DIR}{model_name}_{args.training_config}_{args.probe_dataset}_{args.max_train_games}_{config.linear_probe_name}_layer{layer}.pth"
         )
         if os.path.exists(linear_probe_name):
             print(f"Found checkpoint named {linear_probe_name}, recovering checkpoint and resuming training")

@@ -4,375 +4,291 @@ import re
 import json
 from itertools import cycle, product
 from matplotlib.lines import Line2D
+import torch
+import os
+from typing import List
+
+def plot_probe_accuracies_by_layer(
+    model_names: List[str],
+    probe_type: str,
+    train_set: str,
+    num_layers: int = 8,
+    piece_type: str = "chess_piece"
+) -> None:
+    """
+    Plot linear probe accuracies across layers for multiple models.
+    
+    Args:
+        model_names: List of model names to analyze
+        probe_type: Type of probe (e.g., 'classic')
+        train_set: Training set used (e.g., 'lichess')
+        num_layers: Number of layers to analyze
+        piece_type: Type of piece probe
+    """
+    plt.figure(figsize=(10, 6))
+    labels = {
+        "random_karvhypNSNR_600K" : 'small_random',
+        "random_karvhypNSNR_300K" : 'small_random_300',
+        "karvmodel_600K" : "karvonen original model",
+        "big_random16M_vocab32_300K" : "big_random",
+        "gm_karvhyp_300K" : "grandmaster games"
+    }
+    colors = {
+        "random_karvhypNSNR_600K" : "#6ebf06",
+        "random_karvhypNSNR_300K" : "#e89915",
+        "karvmodel_600K" : "#e31609",
+        "big_random16M_vocab32_300K" : "#2292a4",
+        "gm_karvhyp_300K" : "#714955", 
+    }
+    for model_name in model_names:
+        accuracies = []
+        
+        for layer in range(num_layers):
+            # Construct checkpoint filename
+            checkpoint_name = f"{model_name}_{probe_type}_{train_set}_10000_{piece_type}_probe_layer{layer}.pth"
+            checkpoint_path = os.path.join("../linear_probes", checkpoint_name)
+            
+            try:
+                # Load checkpoint and extract accuracy
+                checkpoint = torch.load(checkpoint_path)
+                accuracy = checkpoint["accuracy"].item()
+                accuracies.append(accuracy * 100)  # Convert to percentage
+            except Exception as e:
+                print(f"Error loading {checkpoint_path}: {e}")
+                accuracies.append(None)
+        
+        # Plot accuracies for this model
+        plt.plot(range(num_layers), accuracies, color=colors[model_name], marker='o', label=labels[model_name])
+    
+    plt.xlabel("Layer")
+    plt.ylabel("Accuracy (%)")
+    plt.title(f"Linear Probe Accuracies") #({probe_type} - {train_set})")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"probe_accuracies_{probe_type}_{train_set}.png")
+    plt.show()
+
 
 def plot_accuracy_by_iterations(
     results_datapath,
     model_prefixes,
-    max_train_games_list=None,
-    num_epochs_list=None,
-    probe_datasets=None,
-    training_configs=None,
-    accuracy_types=None,
-    color_means=None,
-    line_means=None,
-    marker_means=None,
-    debugging=-1
+    probe_datasets,
+    training_configs,
+    accuracy_types,
+    color_list=None,
+    skip_0=True,
+    legend_probe_dataset=True,
+    legend_accuracy_type=True,
+    grid=False
 ):
     """
-    Plots accuracy vs. iterations, filtered by the given criteria.
+    Plots iteration vs. accuracy for the given model prefixes, probe datasets,
+    training configs, and accuracy types, based on data in a JSON file.
 
-    Args:
-        results_datapath (str): Path to the JSON data file.
-        model_prefixes (list of str): Which model prefixes to plot.
-        max_train_games_list (list of str or int, optional): Filter by max_train_games.
-        num_epochs_list (list of str or int, optional): Filter by num_epochs.
-        probe_datasets (list of str, optional): Filter by probe_dataset.
-        training_configs (list of str, optional): Filter by training_config.
-        accuracy_types (list of str, optional): List of accuracy types to plot. Can include "training_set".
-        color_means (str, optional): Variable name to map to colors.
-        line_means (str, optional): Variable name to map to line styles.
-        marker_means (str, optional): Variable name to map to markers.
-        debugging (int, optional): Debugging level. Set to >=0 to enable print statements.
+    :param results_datapath: Path to the JSON file containing results.
+    :param model_prefixes: List of model prefix strings to include.
+    :param probe_datasets: List of probe datasets to include.
+    :param training_configs: List of training configs to include.
+    :param accuracy_types: List of accuracy types to plot (e.g. ["train", "random", "lichess", "training set"]).
+    :param color_list: Optional list of colors for each model prefix (must be at least as long as model_prefixes).
     """
-    
-    # Validate mapping arguments
-    valid_means = {"model_prefix", "num_epochs", "max_train_games", "probe_dataset", "training_config", "accuracy_type"}
-    for arg, value in zip(["color_means", "line_means", "marker_means"], [color_means, line_means, marker_means]):
-        if value is not None and value not in valid_means:
-            raise ValueError(f"{arg} must be one of {valid_means}, got '{value}'.")
 
-    # Set default accuracy_types if not provided
-    if accuracy_types is None:
-        accuracy_types = ["train"]
-    elif isinstance(accuracy_types, str):
-        accuracy_types = [accuracy_types]
-    elif not isinstance(accuracy_types, list):
-        raise ValueError("accuracy_types must be a string or a list of strings.")
-    
-    # Load data
-    with open(results_datapath, 'r', encoding='utf-8') as f:
+    # 1. Read the JSON file
+    with open(results_datapath, 'r') as f:
         data = json.load(f)
-    
-    # --- 0) Normalize optional lists to sets for quick membership checks
-    if max_train_games_list is not None:
-        max_train_games_list = set(str(x) for x in max_train_games_list)
-    if probe_datasets is not None:
-        probe_datasets = set(probe_datasets)
-    if training_configs is not None:
-        training_configs = set(training_configs)
-    
-    # --- 1) Helper to extract iterations from model_name
-    def extract_iterations(model_name):
-        match = re.search(r"_(\d+)K$", model_name)
-        if match:
-            return int(match.group(1)) * 1000
-        return None
-    
-    # --- 2) Filter the data
+
+    # Convert single-record JSON into list if necessary
+    if isinstance(data, dict):
+        data = [data]
+
+    # 3. Helper: parse model name into (base_prefix, iteration_label).
+    #    For example, "random_karvhypNSNR_300K" -> ("random_karvhypNSNR", "300K")
+    #    If there's no underscore, treat entire string as prefix, iteration=None
+    def split_model_name(model_name):
+        if "_" not in model_name:
+            return model_name, None
+        parts = model_name.rsplit("_", 1)
+        prefix_part = parts[0]
+        iteration_part = parts[1]
+        return prefix_part, iteration_part
+
+    # 4. Helper: parse iteration label like "300K", "1M" into an integer (for sorting)
+    #    If you prefer to keep them as strings, skip integer parsing,
+    #    but then you'll need to sort them lexicographically or map them to an order.
+    def parse_iteration(iter_str):
+        """Convert '300K' -> 300000, '1M' -> 1000000, '500k' -> 500000, etc.
+           Fall back to try int(), else return None."""
+        if not iter_str:
+            return None
+        # Common patterns: 300K, 500k, 1M, 2m, 10000, ...
+        # Try a quick regex:
+        m = re.match(r"(\d+(?:\.\d+)?)([kKmM]?)", iter_str)
+        if not m:
+            # Last fallback: try to parse as int
+            try:
+                return int(iter_str)
+            except ValueError:
+                return None
+        number_str, suffix = m.groups()
+        number_val = float(number_str)
+        suffix = suffix.lower()
+        if suffix == 'k':
+            return int(number_val * 1000)
+        elif suffix == 'm':
+            return int(number_val * 1000000)
+        else:
+            return int(number_val)
+
+    # 5. Helper: get the correct accuracy for a given record & accuracy type
+    def get_accuracy(record, acc_type):
+        """
+        "train" -> record["accuracy"]
+        "training set" -> record["test_results"][record["probe_dataset"]]
+        Otherwise, assume acc_type is a key in test_results, e.g. "random", "lichess"
+        """
+        if acc_type == "train":
+            return record.get("accuracy", None)
+        elif acc_type == "training_set":
+            pd = record["probe_dataset"]
+            return record["test_results"].get(pd, None)
+        else:
+            return record["test_results"].get(acc_type, None)
+
+
+    # 2. Filter data by the given arguments
     filtered_data = []
-    for row in data:
-        model_name = row.get("model_name", "Unknown")
-        probe_dataset = row.get("probe_dataset", "Unknown")
-        if debugging >= 0:
-            print(f"Processing model: {model_name}, training_config {row.get("training_config","Unknown")}, probe dataset {probe_dataset}")
-        
-        # Filter by model_prefixes
-        if not any(model_name.startswith(pref) for pref in model_prefixes):
-            if debugging >= 1:
-                print(f"Skipping {model_name}: Prefix mismatch.")
-            continue
-        
-        # Filter by max_train_games
-        if max_train_games_list is not None:
-            if str(row.get("max_train_games", "")) not in max_train_games_list:
-                if debugging >= 1:
-                    print(f"Skipping {model_name}: max_train_games filter.")
-                continue
-        
-        # Filter by num_epochs
-        if num_epochs_list is not None:
-            if int(row.get("num_epochs", 0)) not in num_epochs_list:
-                if debugging >= 1:
-                    print(f"Skipping {model_name}: num_epochs filter.")
-                continue
-        
-        # Filter by probe_datasets
-        if probe_datasets is not None: 
-            probe_dataset = row.get("probe_dataset","dataset")
-            model_training_set = row.get("model_name","prefix").split('_')[0]
-            if (probe_dataset not in probe_datasets):
-                if "training_set" in probe_datasets and probe_dataset == model_training_set:
+    for record in data:
 
-                    pass
-                else:
-                    if debugging >= 1:
-                        print(f"Skipping {model_name}: probe_dataset filter.")
-                    continue
-            
-        # Filter by training_configs
-        if training_configs is not None:
-            if row.get("training_config", "") not in training_configs:
-                if debugging >= 1:
-                    print(f"Skipping {model_name}: training_config filter.")
-                continue
-        
-        # Ensure test_results exist
-        if "test_results" not in row:
-            if debugging >= 1:
-                print(f"Skipping {model_name}: 'test_results' missing.")
+        # The record must match in all of these:
+        if record.get("probe_dataset") in probe_datasets \
+           and record.get("training_config") in training_configs:
+            # We only keep if the model prefix also matches
+            # We'll parse out the actual prefix vs iteration below
+            # but let's do a coarse check that the record's model_name
+            # starts with one of the prefixes (before final underscore).
+            # The function below extracts the prefix (base) and iteration
+            prefix, iteration_str = split_model_name(record["model_name"])
+            if prefix in model_prefixes:
+                filtered_data.append(record)
+
+
+        # 6. Collect all points we want to plot:
+    #    We'll store them in a structure keyed by (prefix, probe_dataset, accuracy_type)
+    #    Then each entry is a list of (iteration, accuracy).
+    plot_dict = {}
+    for record in filtered_data:
+        prefix, iteration_str = split_model_name(record["model_name"])
+        iteration_val = parse_iteration(iteration_str)
+        if iteration_val is None:
+            # If you prefer to skip records without valid iteration, you can continue
+            # or store them at iteration=0, etc. We'll skip them here:
             continue
-        
-        # Check accuracy_types
-        if accuracy_types is not None:
-            missing_types = []
-            for acc_type in accuracy_types:
-                if acc_type == "train":
-                    if "accuracy" not in row:
-                        missing_types.append("train")
-                elif acc_type == "training_set":
-                    # Will handle later based on probe_dataset
-                    continue
-                else:
-                    if acc_type not in row["test_results"]:
-                        missing_types.append(acc_type)
-            if missing_types:
-                if debugging >= 1:
-                    print(f"Skipping {model_name}: Missing accuracy types {missing_types}.")
-                continue
-        
-        # Extract iterations
-        iters = extract_iterations(model_name)
-        if iters is None:
-            if debugging >= 1:
-                print(f"Skipping {model_name}: Unable to parse iterations.")
+        if skip_0 and iteration_val == 0:
             continue
-        row["iterations"] = iters
-        
-        filtered_data.append(row)
-    
-    if debugging >= 0:
-        print(f"Filtered data points: {len(filtered_data)}")
-        print(f"Filtered data : {(filtered_data)}")
-    
-    # --- 3) Group data by model_prefix
-    grouped_by_prefix = {}
-    for row in filtered_data:
-        model_name = row["model_name"]
-        prefix_match = None
-        for pref in model_prefixes:
-            if "_".join(model_name.split("_")[:-1]) == pref:
-                prefix_match = pref
-                break
-        if prefix_match is None:
-            continue  # Should not happen
-        
-        if prefix_match not in grouped_by_prefix:
-            grouped_by_prefix[prefix_match] = []
-        grouped_by_prefix[prefix_match].append(row)
-    
-    # --- 4) Determine unique values for color_means, line_means, marker_means
-    color_values = set()
-    line_values = set()
-    marker_values = set()
-    
-    for row in filtered_data:
-        if color_means:
-            model_name = str(row.get("model_name", "Unknown"))
-            color_key = model_name.rsplit('_', 1)[0]
-            color_values.add(color_key)
-        if line_means:
-            line_values.add(str(row.get(line_means, "Unknown")))
-        if marker_means:
-            marker_values.add(str(row.get(marker_means, "Unknown")))
-        # Additionally, accuracy_types can influence markers
-        # But since marker_means is separate, we'll handle accuracy_types as part of marker_means if needed
-    
-    # --- 5) Assign colors, line styles, markers
-    color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    color_cycler = cycle(color_cycle)
-    color_mapping = {val: next(color_cycler) for val in sorted(color_values)}
-    
-    line_styles = ['-', '--', '-.', ':', (0, (3, 1, 1, 1)), (0, (5, 5)), (0, (1, 10))]
-    line_cycler = cycle(line_styles)
-    line_mapping = {val: next(line_cycler) for val in sorted(line_values)}
-    
-    markers = ["o", "s", "x", "D", "^", "*", "P", "v", ">", "<", "h", "H", "d", "p"]
-    marker_cycler = cycle(markers)
-    marker_mapping = {val: next(marker_cycler) for val in sorted(marker_values)}
-    
-    # Additionally, map accuracy_types to markers if multiple
-    if len(accuracy_types) > 1:
-        accuracy_marker_mapping = {}
+
+        pd = record["probe_dataset"]
         for acc_type in accuracy_types:
-            accuracy_marker_mapping[acc_type] = next(marker_cycler)
-    else:
-        accuracy_marker_mapping = {}
-    
-    if debugging >= 0:
-        print(f"Color mapping: {color_mapping}")
-        print(f"Line style mapping: {line_mapping}")
-        print(f"Marker mapping: {marker_mapping}")
-        if accuracy_marker_mapping:
-            print(f"Accuracy type marker mapping: {accuracy_marker_mapping}")
-    
-    # --- 6) Start plotting
-    fig, ax = plt.subplots(figsize=(12, 8))
+            acc_val = get_accuracy(record, acc_type)
+            if acc_val is not None:
+                key = (prefix, pd, acc_type)
+                if key not in plot_dict:
+                    plot_dict[key] = []
+                plot_dict[key].append((iteration_val, acc_val))
 
-    # Collect legend handles
-    color_handles = []
-    line_handles = []
-    marker_handles = []
-    if debugging >= -1:
-        print(f"grouped by prefix {grouped_by_prefix.keys()}")
+    # Sort each list of (iteration, accuracy) by iteration
+    for key in plot_dict:
+        plot_dict[key].sort(key=lambda x: x[0])
 
+    # 7. Prepare line styles, markers, and colors
+    # Make sure you have enough styles for however many you have in the lists
+    default_colors = ["#6ebf06", "#e89915", "#e31609", "#2292a4", "#714955", 
+                      "brown", "pink", "gray", "olive", "cyan"]
+    if color_list is None:
+        color_list = default_colors
 
-    def third_level_structure():
-        return {
-            "iterations": [],
-            "accuracies": [],
-            "color": "pink",
-            "line_style": ":",
-            "marker": "D",
-            "label": "default"
-        }
+    # Assign color per model_prefix (order as in model_prefixes)
+    color_map = {}
+    for i, mp in enumerate(model_prefixes):
+        # If user-supplied color_list is too short, wrap around with modulo
+        color_map[mp] = color_list[i % len(color_list)]
 
-    # Create a defaultdict for nested structure
-    all_info = defaultdict(lambda: defaultdict(lambda: defaultdict(third_level_structure)))
+    # Assign line style per probe dataset
+    line_styles = ["-", "--", "-.", ":"]
+    line_map = {}
+    for i, ds in enumerate(probe_datasets):
+        line_map[ds] = line_styles[i % len(line_styles)]
 
-    for prefix, probe_dataset, acc_type in product(model_prefixes, probe_datasets, accuracy_types):
-    # Accessing the structure initializes it
-        _ = all_info[prefix][probe_dataset][acc_type]
+    # Assign marker per accuracy type
+    marker_styles = ["o", "s", "D", "^", "v", "<", ">", "p", "*", "x"]
+    marker_map = {}
+    for i, acc_type in enumerate(accuracy_types):
+        marker_map[acc_type] = marker_styles[i % len(marker_styles)]
 
+    # 8. Create a single figure + axis
+    fig, ax = plt.subplots(figsize=(8,6))
 
-    for prefix, probe_dataset, acc_type in product(model_prefixes, probe_datasets, accuracy_types):
-        # Accessing the structure initializes it
-        _ = all_info[prefix][probe_dataset][acc_type]
+    # Plot all lines
+    for (prefix, ds, acc_type), vals in plot_dict.items():
+        if not vals:
+            continue
+        iterations = [v[0] for v in vals]
+        accuracies = [v[1] for v in vals]
 
-    for prefix, rows in grouped_by_prefix.items():
-        # Sort rows by iterations
-        sorted_rows = sorted(rows, key=lambda r: r["iterations"])
-        if debugging >= -2:
-            print(f"In the case of {prefix} the sorted_rows {[row["model_name"] for row in sorted_rows]}")
-        for row in sorted_rows:
-            iterations = row["iterations"]
-            model_training_set = row.get("model_name","prefix").split('_')[0]
-            if probe_dataset == "training_set":
-                row_probe_dataset = row.get(model_training_set, "Unknown")
-            else:
-                row_probe_dataset = row.get("probe_dataset", "Unknown")
-            for acc_type in accuracy_types:
-                # Determine accuracy value
-                if acc_type == "train":
-                    accuracy = row.get("accuracy", None)
-                elif acc_type == "training_set":
-                    # Map to test_results based on probe_dataset
-                    accuracy = row["test_results"].get(row_probe_dataset, None)
-                else:
-                    accuracy = row["test_results"].get(acc_type, None)
-                
-                if accuracy is None:
-                    if debugging >= 1:
-                        print(f"Missing accuracy for {acc_type} in model {prefix}, probe_dataset {probe_dataset}.")
-                    continue
-                
-                # Determine color
-                if color_means:
-                    if color_means =="model_prefix":
-                        model_name = str(row.get("model_name", "Unknown"))
-                        color_key = model_name.rsplit('_', 1)[0]
-                        color = color_mapping.get(color_key, 'black')
-                    else:
-                        color_key = str(row.get(color_means, "Unknown"))
-                        color = color_mapping.get(color_key, 'black')
-                else:
-                    color = 'black'
-                
-                # Determine line style
-                if line_means:
-                    line_key = str(row.get(line_means, "Unknown"))
-                    line_style = line_mapping.get(line_key, ':')
-                else:
-                    line_style = '-'
-                
-                # Determine marker
-                if len(accuracy_types) > 1 and acc_type in accuracy_marker_mapping:
-                    marker = accuracy_marker_mapping[acc_type]
-                elif marker_means:
-                    marker_key = str(row.get(marker_means, "Unknown"))
-                    marker = marker_mapping.get(marker_key, 'o')
-                else:
-                    marker = 'o'
-                
-                # Prepare label
-                label_components = []
-                if color_means:
-                    label_components.append(f"{color_means}={color_key}")
-                if line_means:
-                    label_components.append(f"{line_means}={line_key}")
-                if len(accuracy_types) > 1:
-                    label_components.append(f"Accuracy={acc_type}")
-                label = ", ".join(label_components)
-                all_info[prefix][probe_dataset][acc_type]["iterations"].append(iterations)
-                all_info[prefix][probe_dataset][acc_type]["accuracies"].append(accuracy)
-                all_info[prefix][probe_dataset][acc_type]["color"] = color
-                all_info[prefix][probe_dataset][acc_type]['line_style'] = line_style
-                all_info[prefix][probe_dataset][acc_type]["marker"] = marker
-                all_info[prefix][probe_dataset][acc_type]["label"] = label
-
-                # Plot
-                if debugging >= -1:
-                    print(f"ploting {iterations} with {accuracy} color {color} linestyle {line_style} marker {marker} label {label}")
-    for prefix, probe_dataset, acc_type in product(model_prefixes, probe_datasets, accuracy_types):
         ax.plot(
-            all_info[prefix][probe_dataset][acc_type]["iterations"],
-            all_info[prefix][probe_dataset][acc_type]["accuracies"],
-            color=all_info[prefix][probe_dataset][acc_type]["color"],
-            linestyle=all_info[prefix][probe_dataset][acc_type]["line_style"],
-            marker=all_info[prefix][probe_dataset][acc_type]["marker"],
-            label=all_info[prefix][probe_dataset][acc_type]["label"]
-                    )
-        
-    # --- 7) Create custom legends
-    
-    # Legend for Colors
-    if color_means:
-        color_handles = [
-            Line2D([0], [0], color=color_mapping[val], lw=2, label=val)
-            for val in sorted(color_values)
-        ]
-        color_legend = ax.legend(handles=color_handles, title=color_means, loc="upper left")
-        ax.add_artist(color_legend)
-    
-    # Legend for Line Styles
-    if line_means:
-        line_handles = [
-            Line2D([0], [0], color='black', linestyle=line_mapping[val], lw=2, label=val)
-            for val in sorted(line_values)
-        ]
-        line_legend = ax.legend(handles=line_handles, title=line_means, loc="upper right")
-        ax.add_artist(line_legend)
-    
-    # Legend for Markers
-    if len(accuracy_types) > 1:
-        marker_handles = [
-            Line2D([0], [0], marker=accuracy_marker_mapping[acc_type], color='w', label=acc_type,
-                   markerfacecolor='gray', markersize=8)
-            for acc_type in accuracy_types
-        ]
-        marker_legend = ax.legend(handles=marker_handles, title="Accuracy Types", loc="lower right")
-    elif marker_means:
-        marker_handles = [
-            Line2D([0], [0], marker=marker_mapping[val], color='w', label=val,
-                   markerfacecolor='gray', markersize=8)
-            for val in sorted(marker_values)
-        ]
-        marker_legend = ax.legend(handles=marker_handles, title=marker_means, loc="lower right")
-    
-    # --- 8) Final plot adjustments
-    ax.set_xlabel("Iterations")
+            iterations,
+            accuracies,
+            color=color_map[prefix],
+            linestyle=line_map[ds],
+            marker=marker_map[acc_type],
+            label=(prefix, ds, acc_type)  # raw label (not used directly in final legends)
+        )
+
+    ax.set_xlabel("Iteration")
     ax.set_ylabel("Accuracy")
-    ax.set_title("Accuracy vs. Iterations")
-    ax.grid(True)
-    
+    ax.set_title("Accuracy vs. Iterations by model")
+
+    # 9. Construct three separate legends
+    model_names = {
+        "lichess_karvhyp" : "lichess",
+        "random_karvhypNSNR" : "small_random",
+        "big_random16M_vocab32" : "big_random",
+        "gm_karvhyp" : "grandmaster",
+        "2_random_600" : "big_random2"
+    }
+    # Legend 1: Model Prefix (colors)
+    legend1_handles = []
+    legend1_labels = []
+    for mp in model_prefixes:
+        # A dummy line2D for each prefix color
+        handle = Line2D([0], [0], color=color_map[mp], linewidth=3)
+        legend1_handles.append(handle)
+        legend1_labels.append(model_names[mp])
+    legend1 = ax.legend(legend1_handles, legend1_labels, title="Model dataset", loc="upper left")
+    ax.add_artist(legend1)
+
+    # Legend 2: Probe Dataset (line styles)
+    legend2_handles = []
+    legend2_labels = []
+    for ds in probe_datasets:
+        handle = Line2D([0], [0], color="black", linestyle=line_map[ds], linewidth=2)
+        legend2_handles.append(handle)
+        legend2_labels.append(ds)
+    if legend_probe_dataset:
+        legend2 = ax.legend(legend2_handles, legend2_labels, title="Probe training dataset", loc="upper center")
+        ax.add_artist(legend2)
+
+    # Legend 3: Accuracy Type (markers)
+    legend3_handles = []
+    legend3_labels = []
+    for acc_type in accuracy_types:
+        handle = Line2D([0], [0], color="black", marker=marker_map[acc_type],
+                        linewidth=0, markersize=8)
+        legend3_handles.append(handle)
+        legend3_labels.append(acc_type)
+    if legend_accuracy_type:
+        legend3 = ax.legend(legend3_handles, legend3_labels, title="Accuracy Type", loc="upper right")
+        ax.add_artist(legend3)
+
     plt.tight_layout()
+    plt.grid(grid)
     plt.show()

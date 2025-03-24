@@ -79,6 +79,12 @@ def parse_arguments():
         help="If set, also run test probe after training."
     )
     parser.add_argument(
+        "--layer",
+        type=int,
+        default=6,
+        help="If set, also run test probe after training."
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="If set, print verbose output to the terminal."
@@ -240,7 +246,8 @@ def build_checkpoint_filename(model_name, training_config,probe_dataset,max_trai
     
     Adjust as needed for your naming convention. For now, let's do something literal:
     """
-    linear_probe_name = f"{model_name}_{training_config}_{probe_dataset}_{max_train_games}_chess_piece_probe.pth"
+    linear_probe_name = f"{model_name}_{training_config}6_{probe_dataset}_{max_train_games}_chess_piece_probe_layer6.pth"
+
  
     return os.path.join(LINEAR_PROBE_FOLDER, linear_probe_name)
 
@@ -268,7 +275,8 @@ def main():
             d["model_name"],
             d["training_config"],
             d["probe_dataset"],
-            d["max_train_games"]
+            d["max_train_games"],
+            d.get("layer",5)
         )
         for d in experiment_tracking
         if "accuracy" in d  # or any condition you want
@@ -287,7 +295,7 @@ def main():
     for model_name, probe_dataset, training_config in combos:
         model_name_pth = model_name + ".pth"
         print("\n----------------------------------------------------")
-        print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}, max_train_games={args.max_train_games}")
+        print(f"[COMBO] model={model_name}, probe_dataset={probe_dataset}, config={training_config}, max_train_games={args.max_train_games}, layer={args.layer}")
         print("----------------------------------------------------\n")
         try:
             # 1) Check if the transformer lens model exists
@@ -297,7 +305,7 @@ def main():
             # 2) Check if this combination is already done or started
             keepTraining = True
             experiment = None
-            if (model_name, training_config, probe_dataset, args.max_train_games) in completed_set:
+            if (model_name, training_config, probe_dataset, args.max_train_games,args.layer) in completed_set:
                 required_epochs = args.num_epochs
                 experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
                 experiment = experiment_tracking[experiment_index]
@@ -328,10 +336,6 @@ def main():
                         # Store the result in our tracking list
     #                    print(f"model name {experiment["model_name"]} training config {experiment["training_config"]}, probe dataset {experiment["probe_dataset"]}, max_games {experiment["max_train_games"]}")
 
-                        #assert experiment["model_name"] == model_name
-                        #assert experiment["training_config"] == training_config
-                        #assert experiment["probe_dataset"] == probe_dataset
-                        #assert experiment["max_train_games"] == args.max_train_games
                         previous_accuracies = []
                         if experiment:
                             previous_accuracies = experiment["accuracy_list"]
@@ -345,6 +349,7 @@ def main():
                             "num_epochs": args.num_epochs,
                             "accuracy_list": previous_accuracies + list(ckpt["accuracy_queue"]),
                             "accuracy": accuracy,
+                            "layer": args.layer,
                             "test_results": {},
                         }
                         experiment_tracking.append(experiment_tracked)
@@ -353,7 +358,7 @@ def main():
                             json.dump(experiment_tracking, f, indent=2)
 
                         print(f"Saved {checkpoint_path} probe to {TRACKING_FILE}")
-                        completed_set.append((model_name,training_config,probe_dataset,args.max_train_games))
+                        completed_set.append((model_name,training_config,probe_dataset,args.max_train_games,args.layer))
                     else:
                         if args.verbose:
                             print("[WARNING] 'accuracy' key not found in checkpoint. Skipping logging.")
@@ -380,10 +385,10 @@ def main():
                 print(f"[TEST] model={model_name}, config={training_config}, probe_dataset={probe_dataset}, max_train_games={args.max_train_games}, test_dataset={test_dataset}")
                 print("----------------------------------------------------\n")
             try:
-                assert((model_name, training_config, probe_dataset, args.max_train_games) in completed_set)
-                experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games))
+                assert((model_name, training_config, probe_dataset, args.max_train_games, args.layer) in completed_set)
+                experiment_index = completed_set.index((model_name, training_config, probe_dataset, args.max_train_games, args.layer))
                 
-                probe_name = f"{model_name}_{training_config}_{probe_dataset}_{args.max_train_games}_chess_piece_probe"
+                probe_name = f"{model_name}_{training_config}_{probe_dataset}_{args.max_train_games}_chess_piece_probe_layer{args.layer}"
                 output_location = f"linear_probes/test_data/{probe_name}_{test_dataset}.pkl"
                 if os.path.exists(output_location):
                     print(f"Testing seems to have been run, getting results from {output_location}")

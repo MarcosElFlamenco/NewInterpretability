@@ -37,9 +37,9 @@ test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
 		--probe piece \
-		--probe_dataset lichess \
-		--model_name lichess_karvhyp_300K \
-		--training_config cast32 \
+		--probe_dataset random \
+		--model_name big_random16M_vocab32_200K \
+		--training_config classic \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--test_games_dataset random \
 		--verbose
@@ -57,6 +57,19 @@ ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_
 ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_600K random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K random_karvhypNSNR_50K 
 ALL_GM_MODELS := gm_karvhyp_600K gm_karvhyp_500K gm_karvhyp_400K gm_karvhyp_300K gm_karvhyp_200K gm_karvhyp_100K
 ALL_RANDOM_FINETUNED := random16M_finetune300GM_300K random16M_finetune300GM_250K random16M_finetune300GM_200K random16M_finetune300GM_150K random16M_finetune300GM_100K 
+ALL_BR_MODELS := big_random16M_vocab32_300K big_random16M_vocab32_200K big_random16M_vocab32_100K
+
+train_8layers:
+	$(PYTHON) $(TEST) \
+		--mode train \
+		--probe piece \
+		--probe_dataset random \
+		--model_name random_karvhypNSNR_300K \
+		--training_config classic \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--num_epochs 3
+	
+	
 
 train_all_cast8_probes:
 	$(PYTHON) run_experiments.py \
@@ -70,7 +83,7 @@ train_all_cast8_probes:
 
 train_all_cast8_probes2:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNS_MODELS) $(ALL_RANDOMNSNR_MODELS) \
+		--models karvmodel_600K \
 		--probe_datasets lichess random \
 		--training_configs cast8 \
 		--test_games_datasets lichess random \
@@ -79,13 +92,13 @@ train_all_cast8_probes2:
 		--test
 
 
-
+ALL_2_MODELS := 2_random_600_100K 2_random_600_150K 2_random_600_200K 2_random_600_250K 2_random_600_300K
 train_all_classic_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_RANDOMNSNR_MODELS) $(ALL_LICHESS_MODELS) $(ALL_RANDOMNS_MODELS) $(ALL_GM_MODELS) $(ALL_RANDOM_FINETUNED) \
-		--probe_datasets random lichess \
+		--models $(ALL_2_MODELS) \
+		--probe_datasets random \
 		--training_configs classic \
-		--test_games_datasets random lichess \
+		--test_games_datasets random \
 		--max_train_games $(MAX_TRAIN_GAMES) \
 		--num_epochs 3 \
 		--verbose \
@@ -121,6 +134,13 @@ download_trained_probes:
 		--bucket_name $(BUCKET) \
 		--s3_keys $(S3_PROBES) \
 		--download_paths $(LOCAL_PROBES)
+
+B1 := sagemaker-studio-278996676838-lxqpwqk095
+B2 := sagemaker-studio-278996676838-tra9wnryy9 
+B3 := sagemaker-studio-68swsdxy414
+B4 := sagemaker-studio-7ob0kfsw80s
+B5 := sagemaker-us-east-1-278996676838
+
 
 sups3:
 	aws s3 rm s3://$(B1) --recursive
