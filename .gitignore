@@ -5,19 +5,8 @@ wandb/
 *.txt
 
 
-data/random_train.csv
-data/random_test.csv
-!data/lichess.csv
-!data/lichess.csv
-data/lichess_test.csv
-data/lichess_train.csv
-data/random_100mb.csv
-data/random_100mb_filtered.csv
-data/random_test_long.csv
 
-!data/train_test_splitter.ipynb
 
-models/*
 !models/meta.pkl
 !models/view_model.ipynb
 
@@ -27,16 +16,5 @@ intervention_logs/*
 aws/
 awscliv2.zip
 interEnv/
-checkpoint.pth
 dummyEnv/
 env/
-
-linear_probes/saved_probes/*
-
-##debuging
-output.txt
-data/*
-
-pass.txt
-output.txt
-
