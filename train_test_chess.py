@@ -501,40 +501,46 @@ def parse_arguments():
     parser.add_argument(
         '--model_name', 
         type=str, 
-        help='The path to the input CSV file'
+        help='model path'
+    )
+    parser.add_argument(
+        '--layers_to_train',
+        nargs= "+",
+        type=int,
+        help='you may specify as many integers as you want, those are the layers the probes will train on'
     )
     
     parser.add_argument(
         '--probe_dataset', 
         type=str, 
-        help='The path to the input CSV file'
+        help='The dataset to train the probes on'
     )
     
     parser.add_argument(
         '--test_games_dataset', 
         type=str, 
-        help='The path to the input CSV file'
+        help='the dataset to test the probes on'
     )
  
     parser.add_argument(
         '--training_config', 
         type=str, 
-        help='the path to the input csv file'
+        help='the kind of training configuration/probe type'
     )
     parser.add_argument(
         '--max_train_games', 
         type=int, 
-        help='the path to the input csv file'
+        help='maximum games that will be read from the dataset file to be trained on'
     )
     parser.add_argument(
         '--verbose', 
         action="store_true",
-        help='the path to the input csv file'
+        help='prints verbose'
     )
     parser.add_argument(
         '--num_epochs', 
         type=int, 
-        help='the path to the input csv file'
+        help='num epochs in training, each epoch is one pass over the whole dataset'
     )
     args = parser.parse_args()
     return args
@@ -678,7 +684,7 @@ if __name__ == "__main__":
         )
 
 #        layers = list(range(first_layer, last_layer + 1))
-        layers = [6]
+        layers = args.layers_to_train
         probes = populate_probes_dict(
             layers,
             config,

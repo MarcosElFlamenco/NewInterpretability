@@ -10,29 +10,24 @@ MODEL := tf_lens_random_8layers_ckpt_no_optimizer.pth
 PROBE_DATASET := lichess 
 TEST_GAMES_DATASET := random
 
-TRAINING_CONFIG := cast32 
+TRAINING_CONFIG := cast32
 MAX_TRAIN_GAMES := 10000
 NUM_EPOCHS := 3
 
-happy:
-	$(PYTHON) run_experiments.py \
-		--models lichess_karvhyp_10K \
-		--probe_datasets $(PROBE_DATASET) \
-		--training_configs $(TRAINING_CONFIG) \
-		--test_games_datasets lichess \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs $(NUM_EPOCHS) \
-
-
-
+# this trains a probe on specified dataset
 train_probe:
 	$(PYTHON) $(TEST) \
 		--mode train \
 		--probe piece \
-		    --num_epochs 1
+		--probe_dataset random \
+		--num_epochs 1 \
+		--layers_to_train 2 3 6 \
+		--model_name big_random16M_vocab32_200K \
+		--training_config classic \
+		--max_train_games $(MAX_TRAIN_GAMES) \
+		--test_games_dataset random \
 		
-		
-
+# this evaluates probe accuracy on a seperate dataset of games
 test_probe: $(TEST)
 	$(PYTHON) $(TEST) \
 		--mode test \
@@ -44,58 +39,17 @@ test_probe: $(TEST)
 		--test_games_dataset random \
 		--verbose
 
-test_control_probe:
-	$(PYTHON) $(TEST) \
-		--mode test \
-		--probe piece \
-		--model_name $(MODEL_NAME) \
-		--probe_dataset $(PROBE_CONTROL_DATASET) \
-		--test_games_dataset $(TEST_GAMES_DATASET)
+#this can contain multiple models
+MODELS := ../models/2_random_600_595K.pth ../models/gm_karvhyp/gm_karvhyp_100K.pth
+#training configs include classic, cast16, ect...
 
-ALL_RANDOMNS_MODELS := random_karvhypNS_600K random_karvhypNS_550K random_karvhypNS_500K random_karvhypNS_450K random_karvhypNS_400K random_karvhypNS_350K random_karvhypNS_300K random_karvhypNS_250K random_karvhypNS_200K random_karvhypNS_150K random_karvhypNS_100K random_karvhypNS_50K 
-ALL_LICHESS_MODELS := lichess_karvhyp_600K lichess_karvhyp_500K lichess_karvhyp_400K lichess_karvhyp_300K lichess_karvhyp_200K lichess_karvhyp_100K lichess_karvhyp_550K lichess_karvhyp_450K lichess_karvhyp_350K lichess_karvhyp_250K lichess_karvhyp_150K lichess_karvhyp_50K lichess_karvhyp_0K
-ALL_RANDOMNSNR_MODELS := random_karvhypNSNR_600K random_karvhypNSNR_550K random_karvhypNSNR_500K random_karvhypNSNR_450K random_karvhypNSNR_400K random_karvhypNSNR_350K random_karvhypNSNR_300K random_karvhypNSNR_250K random_karvhypNSNR_200K random_karvhypNSNR_150K random_karvhypNSNR_100K random_karvhypNSNR_50K 
-ALL_GM_MODELS := gm_karvhyp_600K gm_karvhyp_500K gm_karvhyp_400K gm_karvhyp_300K gm_karvhyp_200K gm_karvhyp_100K
-ALL_RANDOM_FINETUNED := random16M_finetune300GM_300K random16M_finetune300GM_250K random16M_finetune300GM_200K random16M_finetune300GM_150K random16M_finetune300GM_100K 
-ALL_BR_MODELS := big_random16M_vocab32_300K big_random16M_vocab32_200K big_random16M_vocab32_100K
-
-train_8layers:
-	$(PYTHON) $(TEST) \
-		--mode train \
-		--probe piece \
-		--probe_dataset random \
-		--model_name random_karvhypNSNR_300K \
-		--training_config classic \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3
-	
-	
-
-train_all_cast8_probes:
-	$(PYTHON) run_experiments.py \
-		--models $(ALL_LICHESS_MODELS) $(ALL_BR_MODELS) $(ALL_RANDOMNS_MODELS) $(ALL_RANDOMNSNR_MODELS) \
-		--probe_datasets lichess random \
-		--training_configs cast8 \
-		--test_games_datasets lichess random \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--test
-
-train_all_cast8_probes2:
-	$(PYTHON) run_experiments.py \
-		--models karvmodel_600K \
-		--probe_datasets lichess random \
-		--training_configs cast8 \
-		--test_games_datasets lichess random \
-		--max_train_games $(MAX_TRAIN_GAMES) \
-		--num_epochs 3 \
-		--test
-
-
-ALL_2_MODELS := 2_random_600_100K 2_random_600_150K 2_random_600_200K 2_random_600_250K 2_random_600_300K
+# this run experiments script automates probe training and testing
+# and does so over all combinations of configurations you specify
+# there's also a cool little json file that stores all the combinations that have already been run so they dont run again
+# if you ask for them again or if you stop and restart the program
 train_all_classic_probes:
 	$(PYTHON) run_experiments.py \
-		--models $(ALL_2_MODELS) \
+		--models $(MODELS) \
 		--probe_datasets random \
 		--training_configs classic \
 		--test_games_datasets random \
@@ -104,75 +58,19 @@ train_all_classic_probes:
 		--verbose \
 		--test
 
-
+# this is the csv -> bin program from the other repo, not sure you need it but ill leave it here jic
 setup: $(SETUP)
 	$(PYTHON) $(SETUP) \
 		--model_name $(RANDOM_MODEL_NAME)
 
 
-#remote
-
-BUCKET := go-bucket-craft
-B1 := skypilot-workdir-oscar-3286bef5
-
-remote_train_probe:
-	sky jobs launch -c boardCluster remote/train_probes.yaml
-
-remote_test_probe:
-	sky jobs launch -c boardCluster remote/test_probes.yaml
-
-remote_sanity_check_probe:
-	sky jobs launch -c boardCluster remote/sanity_probes.yaml
-
-upload_trained_probes:
-	$(PYTHON) remote/upload_file_to_s3.py \
-		--bucket_name $(BUCKET) \
-		--file_paths $(LOCAL_PROBES)
-
-download_trained_probes:
-	$(PYTHON) remote/download_file_from_s3.py \
-		--bucket_name $(BUCKET) \
-		--s3_keys $(S3_PROBES) \
-		--download_paths $(LOCAL_PROBES)
-
-B1 := sagemaker-studio-278996676838-lxqpwqk095
-B2 := sagemaker-studio-278996676838-tra9wnryy9 
-B3 := sagemaker-studio-68swsdxy414
-B4 := sagemaker-studio-7ob0kfsw80s
-B5 := sagemaker-us-east-1-278996676838
 
 
+B1 := some_s3_bucket
+#delete your buckets with command line using this command, it's much simpler than on the s3 interface
 sups3:
 	aws s3 rm s3://$(B1) --recursive
 	aws s3 rb s3://$(B1)
-	aws s3 rm s3://$(B2) --recursive
-	aws s3 rb s3://$(B2)
-	aws s3 rm s3://$(B3) --recursive
-	aws s3 rb s3://$(B3)
-	aws s3 rm s3://$(B4) --recursive
-	aws s3 rb s3://$(B4)
-	aws s3 rm s3://$(B5) --recursive
-	aws s3 rb s3://$(B5)
-	aws s3 rm s3://$(B6) --recursive
-	aws s3 rb s3://$(B6)
-	aws s3 rm s3://$(B7) --recursive
-	aws s3 rb s3://$(B7)
-	aws s3 rm s3://$(B8) --recursive
-	aws s3 rb s3://$(B8)
-	aws s3 rm s3://$(B9) --recursive
-	aws s3 rb s3://$(B9)
-	aws s3 rm s3://$(B0) --recursive
-	aws s3 rb s3://$(B0)
-	aws s3 rm s3://$(Ba) --recursive
-	aws s3 rb s3://$(Ba)
-	aws s3 rm s3://$(Bb) --recursive
-	aws s3 rb s3://$(Bb)
-	aws s3 rm s3://$(Bc) --recursive
-	aws s3 rb s3://$(Bc)
-	aws s3 rm s3://$(Bd) --recursive
-	aws s3 rb s3://$(Bd)
-	aws s3 rm s3://$(Be) --recursive
-	aws s3 rb s3://$(Be)
-	aws s3 rm s3://$(Bf) --recursive
-	aws s3 rb s3://$(Bf)
 
+#I didnt implement probe training online because the computer is just strong enough that it can do so locally,
+# but i would recomend sending them online, this solution is kind of long and complicated

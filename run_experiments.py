@@ -54,19 +54,21 @@ def parse_arguments():
         "--probe_datasets",
         nargs="+",
         required=True,
-        help="List of probe datasets. Example: --probe_datasets dataset1 dataset2"
+        help="List of probe datasets. Example: --probe_datasets dataset1 dataset2, this is the dataset the probe will be trained on"
     )
     parser.add_argument(
         "--training_configs",
         nargs="+",
         required=True,
-        help="List of training config files or config names. Example: --training_configs config1.yaml config2.yaml"
+        help="List of training config files or config names. Example: --training_configs config1.yaml config2.yaml for these configs refer to "
     )
     parser.add_argument(
         "--test_games_datasets",
         nargs="+",
         default=[],
-        help="List of test game datasets (only used if --test is provided)."
+        help="List of test game datasets (only used if --test is provided). This is the type of dataset that the probes will be evaluated on \
+            A single keyword, like random, refers to different splits weather used in probe datasets and test_games dataset. \
+            Every probe trained will be tested on every entry of this arguments"
     )
     parser.add_argument(
         "--max_train_games",
@@ -82,7 +84,9 @@ def parse_arguments():
         "--layer",
         type=int,
         default=6,
-        help="If set, also run test probe after training."
+        help="This is the layer of the model the probe will be trained on. \
+        does not currently support multiple layers training at once, but the original code does, so this is easily adaptable, \
+        recommended is to test and then chose the most expressive layer" 
     )
     parser.add_argument(
         "--verbose",
@@ -91,7 +95,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--num_epochs",
-        help="If set, print verbose output to the terminal."
+        help="Num trained epochs, recomended 3"
     )
 
 
